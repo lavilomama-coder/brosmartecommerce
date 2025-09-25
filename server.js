@@ -7,19 +7,16 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// MongoDB কানেকশন স্ট্রিং
 const mongoURI = 'mongodb+srv://lavilomama:lavilomama@cluster0.3vszla0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 mongoose.connect(mongoURI)
     .then(() => console.log('MongoDB connected successfully'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-// মিডলওয়্যার
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- মঙ্গুজ স্কিমা এবং মডেল ---
 const productSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     title: String,
@@ -48,6 +45,7 @@ const orderSchema = new mongoose.Schema({
     paymentMethod: String,
     customer: {
         name: String,
+        email: String, // Updated
         phone: String,
         address: String
     },
@@ -89,7 +87,6 @@ const Slide = mongoose.model('Slide', slideSchema);
 const Feature = mongoose.model('Feature', featureSchema);
 const Content = mongoose.model('Content', contentSchema);
 
-// --- নমুনা ডেটা ইনজেকশন ---
 async function injectSampleData() {
     const productsCount = await Product.countDocuments();
     if (productsCount === 0) {
@@ -143,7 +140,6 @@ async function injectSampleData() {
 }
 injectSampleData();
 
-// --- API এন্ডপয়েন্ট ---
 app.get('/api/data', async (req, res) => {
     try {
         const [products, orders, coupons, slides, features, content] = await Promise.all([
@@ -203,7 +199,7 @@ app.post('/api/orders', async (req, res) => {
         }
         const order = new Order({
             id: `O_${Date.now()}`,
-            tracking: `BROS-${new Date().getFullYear()}${new Date().getMonth() + 1}${new Date().getDate()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+            tracking: `BROS-${new Date().getFullYear()}${(new Date().getMonth() + 1).toString().padStart(2, '0')}${new Date().getDate().toString().padStart(2, '0')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
             items,
             subtotal: items.reduce((s, i) => s + i.price * i.qty, 0),
             discount: req.body.discount,
