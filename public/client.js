@@ -146,7 +146,7 @@ function addToCart(id, qty = 1) {
     }
     
     nextCart[id] = currentQty + qty;
-    setState({ cart: nextCart, notify: 'Product added to cart!' });
+    setState({ cart: nextCart, notify: 'Product added to cart!' }); // Updated notification message
 }
 
 function updateCart(id, qty) {
@@ -196,8 +196,7 @@ async function placeOrder(customer) {
                 appliedCoupon: null,
                 lastTracking: order.tracking,
                 showConfirmModal: true,
-                view: 'track-order',
-                viewData: { ...state.viewData, order: order },
+                view: 'shop',
                 notify: 'Order placed — pay on delivery'
             });
             await fetchState();
@@ -647,7 +646,7 @@ function ContentAdminTab(features, content) {
                     <div class="flex-1">
                         <input id="edit-${field}-text-${link.id}" value="${link.text}" class="w-full p-1 border rounded bg-black text-white" />
                         <input id="edit-${field}-url-${link.id}" value="${link.url}" placeholder="URL" class="w-full p-1 border rounded bg-black text-white mt-1" />
-                        ${link.icon ? `<input id="edit-${field}-icon-${link.id}" value="${link.icon}" placeholder="Icon Class (e.g. fab fa-facebook-f)" class="w-full p-1 border rounded bg-black text-white mt-1" />` : ''}
+                        ${link.icon ? `<input id="edit-${field}-icon-${link.id}" value="${link.icon}" placeholder="Icon Class (e.g. fab fa-whatsapp)" class="w-full p-1 border rounded bg-black text-white mt-1" />` : ''}
                     </div>
                     <div>
                         <button class="delete-footer-link-btn px-3 py-1 rounded bg-red-700 text-black" data-field="${field}" data-id="${link.id}">Delete</button>
@@ -1164,6 +1163,61 @@ function attachEventListeners() {
             }
         };
     }
+    
+    // Event listeners for footer links
+    document.querySelectorAll('.add-footer-link-btn').forEach(btn => {
+        btn.onclick = async (e) => {
+            const field = e.target.dataset.field;
+            const text = document.getElementById(`new-${field}-text`).value;
+            const url = document.getElementById(`new-${field}-url`).value;
+            const icon = field === 'socialLinks' ? document.getElementById(`new-${field}-icon`).value : null;
+
+            if (!text || !url || (field === 'socialLinks' && !icon)) {
+                alert('Please provide all info for the new link.');
+                return;
+            }
+            
+            const newLink = { id: uid(), text, url, icon };
+            const updatedContent = { ...state.content };
+            updatedContent[field].push(newLink);
+
+            try {
+                await fetch(`${API_URL}/content`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedContent)
+                });
+                await fetchState();
+                setState({ notify: 'Link added!' });
+            } catch (error) {
+                setState({ notify: 'Failed to add link.' });
+            }
+        };
+    });
+
+    document.querySelectorAll('.delete-footer-link-btn').forEach(btn => {
+        btn.onclick = async (e) => {
+            const field = e.target.dataset.field;
+            const id = e.target.dataset.id;
+            if (!confirm('Delete this link?')) return;
+            
+            const updatedContent = { ...state.content };
+            updatedContent[field] = updatedContent[field].filter(link => link.id !== id);
+
+            try {
+                await fetch(`${API_URL}/content`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedContent)
+                });
+                await fetchState();
+                setState({ notify: 'Link deleted!' });
+            } catch (error) {
+                setState({ notify: 'Failed to delete link.' });
+            }
+        };
+    });
+
 
     const addFeatureBtn = document.getElementById('add-feature-btn');
     if (addFeatureBtn) {
