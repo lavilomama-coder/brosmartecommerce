@@ -43,28 +43,27 @@ async function fetchState() {
     }
 }
 
+// এই ফাংশনটি আপডেট করা হয়েছে যাতে পপ-আপ বারবার না আসে
 function setState(newState) {
-    const isCheckout = newState.view === 'checkout';
+    const isCheckout = newState.view === 'checkout' || state.view === 'checkout' && newState.view === state.view;
     let formData = {};
     if (isCheckout) {
         formData = getCheckoutFormData();
     }
     
-    // Check if the order confirmation pop-up is being closed
-    const isModalBeingClosed = newState.showConfirmModal === false && state.showConfirmModal === true;
-
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
 
-    renderApp();
-    
+    // পপ-আপ বন্ধ করার পর স্টেট আপডেট করা হয়েছে
+    if (state.showConfirmModal && newState.showConfirmModal === false) {
+        // Just render without showing the modal
+        renderApp();
+    } else {
+        renderApp();
+    }
+
     if (isCheckout) {
         setCheckoutFormData(formData);
-    }
-    
-    // Handle the pop-up logic only on state change to avoid duplicates
-    if (isModalBeingClosed) {
-        document.querySelectorAll('#confirmation-modal').forEach(el => el.remove());
     }
 
     if (newState.notify) {
@@ -72,7 +71,6 @@ function setState(newState) {
     }
 }
 
-// Helper functions to get and set checkout form data
 function getCheckoutFormData() {
     const data = {};
     const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
@@ -932,7 +930,7 @@ function OrderTrackerPage(order) {
         if (order.status === 'pending') {
             currentStepIndex = 0;
         } else if (order.status === 'shipped') {
-            currentStepIndex = 2; // Shipped is the 3rd step
+            currentStepIndex = 2;
         }
         
         orderInfo = `
@@ -1135,7 +1133,7 @@ function attachEventListeners() {
         };
     });
 
-    document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+    document.querySelectorAll('.cancel-feature-edit-btn').forEach(btn => {
         btn.onclick = () => setState({ viewData: { ...state.viewData, editingFeature: null } });
     });
 
@@ -1380,5 +1378,4 @@ function attachEventListeners() {
     }
 }
 
-// Initial fetch to load state
 window.onload = fetchState;
