@@ -3,8 +3,7 @@
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
 const ADMIN_PASSWORD = "1234519196@Saif";
 
-// Render-এর লাইভ URL ব্যবহার করা হয়েছে
-const API_URL = 'https://brosmartecommerce.onrender.com/api';
+const API_URL = 'https://brosmart.onrender.com/api';
 
 // --- State Management ---
 let state = {
@@ -433,7 +432,7 @@ function Cart(products, cart) {
     `;
 }
 
-// Checkout ফাংশন আপডেট করা হয়েছে
+// Checkout ফাংশন আপডেট করা হয়েছে
 function Checkout(products, cart, coupons, appliedCoupon) {
     const items = Object.entries(cart).map(([pid, qty]) => {
         const p = products.find(x => x.id === pid);
@@ -451,19 +450,35 @@ function Checkout(products, cart, coupons, appliedCoupon) {
             <div class="bg-gray-900 rounded shadow p-4 border border-red-800 space-y-4" id="checkout-form-container">
                 <div>
                     <label class="block text-sm text-red-200">Name</label>
-                    <input id="checkout-name" class="w-full p-2 border rounded bg-black text-white" />
+                    <input id="checkout-name" class="w-full p-2 border rounded bg-black text-white" required />
                 </div>
                 <div>
                     <label class="block text-sm text-red-200">Email Address</label>
-                    <input id="checkout-email" type="email" class="w-full p-2 border rounded bg-black text-white" />
+                    <input id="checkout-email" type="email" class="w-full p-2 border rounded bg-black text-white" required />
                 </div>
                 <div>
                     <label class="block text-sm text-red-200">Phone Number (Must start with +88)</label>
-                    <input id="checkout-phone" placeholder="+8801XXXXXXXXX" class="w-full p-2 border rounded bg-black text-white" />
+                    <input id="checkout-phone" placeholder="+8801XXXXXXXXX" class="w-full p-2 border rounded bg-black text-white" required />
                 </div>
+                
+                <h3 class="font-semibold text-red-300 pt-2">Shipping Address</h3>
                 <div>
-                    <label class="block text-sm text-red-200">Address</label>
-                    <textarea id="checkout-address" class="w-full p-2 border rounded bg-black text-white"></textarea>
+                    <label class="block text-sm text-red-200">Street Address</label>
+                    <textarea id="checkout-street" class="w-full p-2 border rounded bg-black text-white" required></textarea>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm text-red-200">City</label>
+                        <input id="checkout-city" class="w-full p-2 border rounded bg-black text-white" required />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-red-200">Postal Code</label>
+                        <input id="checkout-postal" class="w-full p-2 border rounded bg-black text-white" required />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-red-200">Country</label>
+                        <input id="checkout-country" value="Bangladesh" class="w-full p-2 border rounded bg-black text-white" required />
+                    </div>
                 </div>
 
                 <div class="flex flex-col sm:flex-row gap-2">
@@ -901,16 +916,42 @@ function attachEventListeners() {
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) checkoutBtn.onclick = () => setState({ view: 'checkout' });
 
+    // কুপন Apply ঠিক করার জন্য নতুন ফাংশন ব্যবহার করা হয়েছে
     const applyCouponBtn = document.getElementById('apply-coupon-btn');
     if (applyCouponBtn) {
         applyCouponBtn.onclick = () => {
             const code = document.getElementById('coupon-code-input').value;
             const coupon = applyCouponByCode(code);
+            
+            // ফর্মে বর্তমান ডেটা সংরক্ষণের জন্য
+            const currentFormData = {
+                name: document.getElementById('checkout-name').value,
+                email: document.getElementById('checkout-email').value,
+                phone: document.getElementById('checkout-phone').value,
+                street: document.getElementById('checkout-street').value,
+                city: document.getElementById('checkout-city').value,
+                postal: document.getElementById('checkout-postal').value,
+                country: document.getElementById('checkout-country').value,
+            };
+
             if (coupon) {
                 setState({ appliedCoupon: coupon, notify: `Applied ${coupon.code}` });
             } else {
                 setState({ appliedCoupon: null, notify: 'Invalid coupon' });
             }
+
+            // কুপন Apply হওয়ার পর ডেটা আবার ফর্মে বসানো
+            setTimeout(() => {
+                if (state.view === 'checkout') {
+                    document.getElementById('checkout-name').value = currentFormData.name;
+                    document.getElementById('checkout-email').value = currentFormData.email;
+                    document.getElementById('checkout-phone').value = currentFormData.phone;
+                    document.getElementById('checkout-street').value = currentFormData.street;
+                    document.getElementById('checkout-city').value = currentFormData.city;
+                    document.getElementById('checkout-postal').value = currentFormData.postal;
+                    document.getElementById('checkout-country').value = currentFormData.country;
+                }
+            }, 100);
         };
     }
 
@@ -918,15 +959,18 @@ function attachEventListeners() {
     if (placeOrderBtn) {
         placeOrderBtn.onclick = () => {
             const name = document.getElementById('checkout-name').value;
-            const email = document.getElementById('checkout-email').value; // নতুন যোগ করা হয়েছে
+            const email = document.getElementById('checkout-email').value; // Updated
             const phone = document.getElementById('checkout-phone').value;
-            const address = document.getElementById('checkout-address').value;
-
-            if (!name || !email || !address) {
-                alert('Please provide Name, Email and Address.');
+            const street = document.getElementById('checkout-street').value;
+            const city = document.getElementById('checkout-city').value;
+            const postal = document.getElementById('checkout-postal').value;
+            const country = document.getElementById('checkout-country').value;
+            
+            if (!name || !email || !phone || !street || !city || !postal || !country) {
+                alert('Please fill out all the required fields.');
                 return;
             }
-            if (!email.includes('@')) { // সাধারণ ইমেইল ভ্যালিডেশন
+            if (!email.includes('@')) {
                 alert('Please provide a valid email address.');
                 return;
             }
@@ -935,22 +979,14 @@ function attachEventListeners() {
                 return;
             }
 
-            placeOrder({ name, email, phone, address });
-        };
-    }
-    
-    // closeModalBtn এর ইভেন্ট লিসনারটি এখান থেকে সরিয়ে দেওয়া হয়েছে
-    // কারণ এখন HTML-এ onclick অ্যাট্রিবিউট ব্যবহার করা হয়েছে
+            const customer = {
+                name,
+                email,
+                phone,
+                address: `${street}, ${city}, ${postal}, ${country}`
+            };
 
-    const adminLoginBtn = document.getElementById('admin-login-btn');
-    if (adminLoginBtn) {
-        adminLoginBtn.onclick = () => {
-            const password = document.getElementById('admin-password').value;
-            if (password === ADMIN_PASSWORD) {
-                setState({ adminAuthed: true, notify: 'Admin access granted' });
-            } else {
-                alert('Wrong password');
-            }
+            placeOrder(customer);
         };
     }
     
