@@ -3,7 +3,7 @@
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
 const ADMIN_PASSWORD = "1234519196@Saif";
 
-const API_URL = 'https://brosmart.onrender.com//api';
+const API_URL = 'https://brosmartecommerce.onrender.com//api';
 
 // --- State Management ---
 let state = {
