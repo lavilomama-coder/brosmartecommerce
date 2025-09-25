@@ -77,11 +77,12 @@ const featureSchema = new mongoose.Schema({
     subtitle: String
 });
 
+// Updated content schema to include footer links and social media
 const contentSchema = new mongoose.Schema({
     id: String,
     footerAbout: String,
     copyright: String,
-    footerLinks: [{ text: String, url: String, id: String }],
+    shopLinks: [{ text: String, url: String, id: String }],
     infoLinks: [{ text: String, url: String, id: String }],
     socialLinks: [{ icon: String, url: String, id: String }]
 });
@@ -93,7 +94,7 @@ const Slide = mongoose.model('Slide', slideSchema);
 const Feature = mongoose.model('Feature', featureSchema);
 const Content = mongoose.model('Content', contentSchema);
 
-// --- Sample Data Injection ---
+// --- Sample Data Injection (Updated) ---
 async function injectSampleData() {
     const productsCount = await Product.countDocuments();
     if (productsCount === 0) {
@@ -140,11 +141,11 @@ async function injectSampleData() {
             id: 'site_content',
             footerAbout: 'Your one-stop destination for quality products at unbeatable prices. We offer a seamless shopping experience and quick delivery.',
             copyright: '© 2025 BrosMart. All rights reserved.',
-            footerLinks: [
-                { text: 'Shop All', url: '#', id: 'FL1' },
-                { text: 'Categories', url: '#', id: 'FL2' },
-                { text: 'My Account', url: '#', id: 'FL3' },
-                { text: 'Contact Us', url: '#', id: 'FL4' }
+            shopLinks: [
+                { text: 'Shop All', url: '#', id: 'SL1' },
+                { text: 'Categories', url: '#', id: 'SL2' },
+                { text: 'My Account', url: '#', id: 'SL3' },
+                { text: 'Contact Us', url: '#', id: 'SL4' }
             ],
             infoLinks: [
                 { text: 'FAQs', url: '#', id: 'IL1' },
@@ -153,10 +154,10 @@ async function injectSampleData() {
                 { text: 'Terms of Service', url: '#', id: 'IL4' }
             ],
             socialLinks: [
-                { icon: 'fab fa-facebook-f', url: 'https://facebook.com', id: 'SL1' },
-                { icon: 'fab fa-twitter', url: 'https://twitter.com', id: 'SL2' },
-                { icon: 'fab fa-instagram', url: 'https://instagram.com', id: 'SL3' },
-                { icon: 'fab fa-linkedin-in', url: 'https://linkedin.com', id: 'SL4' }
+                { icon: 'fab fa-facebook-f', url: '#', id: 'SOC1' },
+                { icon: 'fab fa-twitter', url: '#', id: 'SOC2' },
+                { icon: 'fab fa-instagram', url: '#', id: 'SOC3' },
+                { icon: 'fab fa-linkedin-in', url: '#', id: 'SOC4' }
             ]
         };
         await Content.create(defaultContent);
@@ -201,18 +202,12 @@ app.get('/api/dashboard', async (req, res) => {
     }
 });
 
-// New API to update specific footer links
-app.put('/api/content/footer-links', async (req, res) => {
+app.put('/api/content', async (req, res) => {
     try {
-        const { field, links } = req.body;
-        const updatedContent = await Content.findOneAndUpdate(
-            { id: 'site_content' },
-            { [field]: links },
-            { new: true }
-        );
+        const updatedContent = await Content.findOneAndUpdate({ id: 'site_content' }, req.body, { new: true, upsert: true });
         res.json(updatedContent);
     } catch (err) {
-        res.status(400).json({ message: 'Error updating footer links', error: err.message });
+        res.status(400).json({ message: 'Error updating content', error: err.message });
     }
 });
 
