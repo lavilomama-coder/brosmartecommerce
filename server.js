@@ -94,7 +94,7 @@ const Slide = mongoose.model('Slide', slideSchema);
 const Feature = mongoose.model('Feature', featureSchema);
 const Content = mongoose.model('Content', contentSchema);
 
-// --- Sample Data Injection ---
+// --- Sample Data Injection (Updated) ---
 async function injectSampleData() {
     const productsCount = await Product.countDocuments();
     if (productsCount === 0) {
@@ -154,10 +154,10 @@ async function injectSampleData() {
                 { text: 'Terms of Service', url: '#', id: 'IL4' }
             ],
             socialLinks: [
-                { icon: 'fab fa-facebook-f', url: 'https://facebook.com', id: 'SOC1' },
-                { icon: 'fab fa-twitter', url: 'https://twitter.com', id: 'SOC2' },
-                { icon: 'fab fa-instagram', url: 'https://instagram.com', id: 'SOC3' },
-                { icon: 'fab fa-linkedin-in', url: 'https://linkedin.com', id: 'SOC4' }
+                { icon: 'fab fa-facebook-f', url: '#', id: 'SOC1' },
+                { icon: 'fab fa-twitter', url: '#', id: 'SOC2' },
+                { icon: 'fab fa-instagram', url: '#', id: 'SOC3' },
+                { icon: 'fab fa-linkedin-in', url: '#', id: 'SOC4' }
             ]
         };
         await Content.create(defaultContent);
@@ -202,6 +202,7 @@ app.get('/api/dashboard', async (req, res) => {
     }
 });
 
+// API for updating content, including footer links
 app.put('/api/content', async (req, res) => {
     try {
         const updatedContent = await Content.findOneAndUpdate({ id: 'site_content' }, req.body, { new: true, upsert: true });
