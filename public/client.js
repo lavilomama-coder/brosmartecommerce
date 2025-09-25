@@ -3,7 +3,6 @@
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
 const ADMIN_PASSWORD = "1234519196@Saif";
 
-// Final fix: API_URL now dynamically fetches the current origin to avoid domain name issues
 const API_URL = window.location.origin + '/api';
 
 // --- State Management ---
@@ -44,48 +43,14 @@ async function fetchState() {
     }
 }
 
-// এই ফাংশনটি আপডেট করা হয়েছে যাতে Checkout পেজের ডেটা হারিয়ে না যায়
 function setState(newState) {
-    const isCheckout = newState.view === 'checkout' || state.view === 'checkout' && newState.view === state.view;
-    let formData = {};
-
-    if (isCheckout) {
-        formData = getCheckoutFormData();
-    }
-    
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
-
     renderApp();
-    
-    if (isCheckout) {
-        setCheckoutFormData(formData);
-    }
-
     if (newState.notify) {
         setTimeout(() => setState({ notify: null }), 3500);
     }
 }
-
-// এই দুটি নতুন ফাংশন ফর্মের ডেটা সংরক্ষণ এবং পুনরায় লোড করার জন্য
-function getCheckoutFormData() {
-    const data = {};
-    const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
-    formElements.forEach(el => {
-        data[el.id] = el.value;
-    });
-    return data;
-}
-
-function setCheckoutFormData(data) {
-    const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
-    formElements.forEach(el => {
-        if (data[el.id]) {
-            el.value = data[el.id];
-        }
-    });
-}
-
 
 function money(n) { return `৳${(n / 100).toFixed(2)}`; }
 function genTracking() { const d = new Date(); return `BROS-${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`; }
@@ -117,7 +82,7 @@ function applyCouponByCode(code) {
         }
     }
     if (!c) {
-        setState({ notify: 'Invalid coupon', appliedCoupon: null });
+        // এখানে setState() কল না করে সরাসরি ফলস রিটার্ন করা হয়েছে
         return false;
     }
     return c;
