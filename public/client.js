@@ -1,9 +1,10 @@
 // public/client.js
 // --- Helpers ---
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
-const ADMIN_PASSWORD = "1234519196@Saif";
+const ADMIN_PASSWORD = "admin123";
 
-const API_URL = 'https://brosmartecommerce.onrender.com//api';
+// Final fix: API_URL now dynamically fetches the current origin to avoid domain name issues
+const API_URL = window.location.origin + '/api';
 
 // --- State Management ---
 let state = {
