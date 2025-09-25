@@ -3,7 +3,6 @@
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
 const ADMIN_PASSWORD = "admin123";
 
-// Final fix: API_URL now dynamically fetches the current origin to avoid domain name issues
 const API_URL = window.location.origin + '/api';
 
 // --- State Management ---
@@ -48,12 +47,39 @@ function setState(newState) {
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
     
-    renderApp();
+    // Checkout পেজে ডেটা ইনপুট ঠিক রাখার জন্য বিশেষ ব্যবস্থা
+    if (state.view === 'checkout') {
+        const formData = getCheckoutFormData();
+        renderApp();
+        setCheckoutFormData(formData);
+    } else {
+        renderApp();
+    }
 
     if (newState.notify) {
         setTimeout(() => setState({ notify: null }), 3500);
     }
 }
+
+// এই দুটি নতুন ফাংশন ফর্মের ডেটা সংরক্ষণ এবং পুনরায় লোড করার জন্য
+function getCheckoutFormData() {
+    const data = {};
+    const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
+    formElements.forEach(el => {
+        data[el.id] = el.value;
+    });
+    return data;
+}
+
+function setCheckoutFormData(data) {
+    const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
+    formElements.forEach(el => {
+        if (data[el.id]) {
+            el.value = data[el.id];
+        }
+    });
+}
+
 
 function money(n) { return `৳${(n / 100).toFixed(2)}`; }
 function genTracking() { const d = new Date(); return `BROS-${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`; }
@@ -917,22 +943,21 @@ function attachEventListeners() {
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) checkoutBtn.onclick = () => setState({ view: 'checkout' });
 
-    // কুপন Apply ঠিক করার জন্য নতুন ফাংশন ব্যবহার করা হয়েছে
     const applyCouponBtn = document.getElementById('apply-coupon-btn');
     if (applyCouponBtn) {
         applyCouponBtn.onclick = () => {
             const code = document.getElementById('coupon-code-input').value;
             const coupon = applyCouponByCode(code);
             
-            // ফর্মে বর্তমান ডেটা সংরক্ষণের জন্য
-            const currentFormData = {
-                name: document.getElementById('checkout-name').value,
-                email: document.getElementById('checkout-email').value,
-                phone: document.getElementById('checkout-phone').value,
-                street: document.getElementById('checkout-street').value,
-                city: document.getElementById('checkout-city').value,
-                postal: document.getElementById('checkout-postal').value,
-                country: document.getElementById('checkout-country').value,
+            // Fixed: Store form data before re-rendering
+            const formData = {
+                'checkout-name': document.getElementById('checkout-name').value,
+                'checkout-email': document.getElementById('checkout-email').value,
+                'checkout-phone': document.getElementById('checkout-phone').value,
+                'checkout-street': document.getElementById('checkout-street').value,
+                'checkout-city': document.getElementById('checkout-city').value,
+                'checkout-postal': document.getElementById('checkout-postal').value,
+                'checkout-country': document.getElementById('checkout-country').value,
             };
 
             if (coupon) {
@@ -941,18 +966,15 @@ function attachEventListeners() {
                 setState({ appliedCoupon: null, notify: 'Invalid coupon' });
             }
 
-            // কুপন Apply হওয়ার পর ডেটা আবার ফর্মে বসানো
+            // Fixed: Re-apply form data after state update and re-render
             setTimeout(() => {
-                if (state.view === 'checkout') {
-                    document.getElementById('checkout-name').value = currentFormData.name;
-                    document.getElementById('checkout-email').value = currentFormData.email;
-                    document.getElementById('checkout-phone').value = currentFormData.phone;
-                    document.getElementById('checkout-street').value = currentFormData.street;
-                    document.getElementById('checkout-city').value = currentFormData.city;
-                    document.getElementById('checkout-postal').value = currentFormData.postal;
-                    document.getElementById('checkout-country').value = currentFormData.country;
-                }
-            }, 100);
+                const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
+                formElements.forEach(el => {
+                    if (formData[el.id]) {
+                        el.value = formData[el.id];
+                    }
+                });
+            }, 50); // A short delay to allow for the re-render
         };
     }
 
