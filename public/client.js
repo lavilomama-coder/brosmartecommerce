@@ -1,7 +1,7 @@
 // public/client.js
 // --- Helpers ---
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
-const ADMIN_PASSWORD = "admin123";
+const ADMIN_PASSWORD = "loveyou";
 
 const API_URL = window.location.origin + '/api';
 
@@ -43,6 +43,7 @@ async function fetchState() {
     }
 }
 
+// এই ফাংশনটি আপডেট করা হয়েছে যাতে পপ-আপ বারবার না আসে
 function setState(newState) {
     const isCheckout = newState.view === 'checkout';
     let formData = {};
@@ -902,7 +903,6 @@ function Footer(content) {
     `;
 }
 
-// ConfirmationModal ফাংশনটিকে এমনভাবে আপডেট করা হয়েছে যাতে এটি একবারই আসে
 function ConfirmationModal(trackingId) {
     return `
         <div id="confirmation-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
@@ -941,7 +941,7 @@ function OrderTrackerPage(order) {
                 <h3 class="text-xl font-semibold mb-4">Order Details</h3>
                 <div class="space-y-2 text-red-200">
                     <div><strong>Tracking ID:</strong> ${order.tracking}</div>
-                    <div><strong>Order Date:</strong> ${new Date().toLocaleString()}</div>
+                    <div><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleString()}</div>
                     <div><strong>Customer:</strong> ${order.customer.name}</div>
                     <div><strong>Total:</strong> ${money(order.total)}</div>
                 </div>
@@ -1256,20 +1256,18 @@ function attachEventListeners() {
     document.querySelectorAll('.save-product-btn').forEach(btn => {
         btn.onclick = async (e) => {
             const id = e.target.dataset.id;
-            const newPrice = Number(document.getElementById(`edit-price-${id}`).value);
-            const newStock = Number(document.getElementById(`edit-stock-${id}`).value);
-            if (isNaN(newPrice) || newPrice <= 0 || isNaN(newStock)) {
-                alert('Price and Stock must be valid numbers.');
-                return;
-            }
             const patch = {
                 title: document.getElementById(`edit-title-${id}`).value,
-                price: newPrice,
-                stock: newStock,
+                price: Number(document.getElementById(`edit-price-${id}`).value),
+                stock: Number(document.getElementById(`edit-stock-${id}`).value),
                 image: document.getElementById(`edit-image-${id}`).value,
                 description: document.getElementById(`edit-desc-${id}`).value,
                 specialCoupon: document.getElementById(`edit-special-coupon-${id}`).value.trim() || null
             };
+            if (isNaN(patch.price) || patch.price <= 0 || isNaN(patch.stock)) {
+                alert('Price and Stock must be valid numbers.');
+                return;
+            }
             try {
                 await fetch(`${API_URL}/products/${id}`, {
                     method: 'PUT',
