@@ -43,27 +43,28 @@ async function fetchState() {
     }
 }
 
-// এই ফাংশনটি আপডেট করা হয়েছে যাতে পপ-আপ বারবার না আসে
 function setState(newState) {
-    const isCheckout = newState.view === 'checkout' || state.view === 'checkout' && newState.view === state.view;
+    const isCheckout = newState.view === 'checkout';
     let formData = {};
     if (isCheckout) {
         formData = getCheckoutFormData();
     }
     
+    // Check if the order confirmation pop-up is being closed
+    const isModalBeingClosed = newState.showConfirmModal === false && state.showConfirmModal === true;
+
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
 
-    // পপ-আপ বন্ধ করার পর স্টেট আপডেট করা হয়েছে
-    if (state.showConfirmModal && newState.showConfirmModal === false) {
-        // Just render without showing the modal
-        renderApp();
-    } else {
-        renderApp();
-    }
-
+    renderApp();
+    
     if (isCheckout) {
         setCheckoutFormData(formData);
+    }
+    
+    // Handle the pop-up logic only on state change to avoid duplicates
+    if (isModalBeingClosed) {
+        document.querySelectorAll('#confirmation-modal').forEach(el => el.remove());
     }
 
     if (newState.notify) {
@@ -194,7 +195,8 @@ async function placeOrder(customer) {
                 appliedCoupon: null,
                 lastTracking: order.tracking,
                 showConfirmModal: true,
-                view: 'shop',
+                view: 'track-order',
+                viewData: { ...state.viewData, order: order },
                 notify: 'Order placed — pay on delivery'
             });
             await fetchState();
@@ -900,6 +902,7 @@ function Footer(content) {
     `;
 }
 
+// ConfirmationModal ফাংশনটিকে এমনভাবে আপডেট করা হয়েছে যাতে এটি একবারই আসে
 function ConfirmationModal(trackingId) {
     return `
         <div id="confirmation-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
@@ -938,7 +941,7 @@ function OrderTrackerPage(order) {
                 <h3 class="text-xl font-semibold mb-4">Order Details</h3>
                 <div class="space-y-2 text-red-200">
                     <div><strong>Tracking ID:</strong> ${order.tracking}</div>
-                    <div><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleString()}</div>
+                    <div><strong>Order Date:</strong> ${new Date().toLocaleString()}</div>
                     <div><strong>Customer:</strong> ${order.customer.name}</div>
                     <div><strong>Total:</strong> ${money(order.total)}</div>
                 </div>
@@ -1133,7 +1136,7 @@ function attachEventListeners() {
         };
     });
 
-    document.querySelectorAll('.cancel-feature-edit-btn').forEach(btn => {
+    document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
         btn.onclick = () => setState({ viewData: { ...state.viewData, editingFeature: null } });
     });
 
