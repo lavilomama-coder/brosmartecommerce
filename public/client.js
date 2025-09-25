@@ -1,7 +1,7 @@
 // public/client.js
 // --- Helpers ---
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
-const ADMIN_PASSWORD = "admin123";
+const ADMIN_PASSWORD = "loveyou";
 
 const API_URL = window.location.origin + '/api';
 
@@ -146,7 +146,7 @@ function addToCart(id, qty = 1) {
     }
     
     nextCart[id] = currentQty + qty;
-    setState({ cart: nextCart, notify: 'Product added to cart!' }); // Updated notification message
+    setState({ cart: nextCart, notify: 'Product added to cart!' });
 }
 
 function updateCart(id, qty) {
@@ -635,7 +635,6 @@ function DashboardTab(state) {
     `;
 }
 
-// Updated ContentAdminTab to include footer link editing
 function ContentAdminTab(features, content) {
     const FooterLinkEditor = (title, field, links) => `
         <div class="border p-3 rounded border-red-800 space-y-3">
@@ -1163,61 +1162,6 @@ function attachEventListeners() {
             }
         };
     }
-    
-    // Event listeners for footer links
-    document.querySelectorAll('.add-footer-link-btn').forEach(btn => {
-        btn.onclick = async (e) => {
-            const field = e.target.dataset.field;
-            const text = document.getElementById(`new-${field}-text`).value;
-            const url = document.getElementById(`new-${field}-url`).value;
-            const icon = field === 'socialLinks' ? document.getElementById(`new-${field}-icon`).value : null;
-
-            if (!text || !url || (field === 'socialLinks' && !icon)) {
-                alert('Please provide all info for the new link.');
-                return;
-            }
-            
-            const newLink = { id: uid(), text, url, icon };
-            const updatedContent = { ...state.content };
-            updatedContent[field].push(newLink);
-
-            try {
-                await fetch(`${API_URL}/content`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedContent)
-                });
-                await fetchState();
-                setState({ notify: 'Link added!' });
-            } catch (error) {
-                setState({ notify: 'Failed to add link.' });
-            }
-        };
-    });
-
-    document.querySelectorAll('.delete-footer-link-btn').forEach(btn => {
-        btn.onclick = async (e) => {
-            const field = e.target.dataset.field;
-            const id = e.target.dataset.id;
-            if (!confirm('Delete this link?')) return;
-            
-            const updatedContent = { ...state.content };
-            updatedContent[field] = updatedContent[field].filter(link => link.id !== id);
-
-            try {
-                await fetch(`${API_URL}/content`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedContent)
-                });
-                await fetchState();
-                setState({ notify: 'Link deleted!' });
-            } catch (error) {
-                setState({ notify: 'Failed to delete link.' });
-            }
-        };
-    });
-
 
     const addFeatureBtn = document.getElementById('add-feature-btn');
     if (addFeatureBtn) {
