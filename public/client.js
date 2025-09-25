@@ -3,7 +3,6 @@
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
 const ADMIN_PASSWORD = "admin123";
 
-// API URL now dynamically fetches the current origin to avoid domain name issues
 const API_URL = window.location.origin + '/api';
 
 // --- State Management ---
@@ -45,13 +44,15 @@ async function fetchState() {
 }
 
 function setState(newState) {
-    // FIX: Preserve form data on state change in checkout view
     const isCheckout = newState.view === 'checkout';
     let formData = {};
     if (isCheckout) {
         formData = getCheckoutFormData();
     }
     
+    // Check if the order confirmation pop-up is being closed
+    const isModalBeingClosed = newState.showConfirmModal === false && state.showConfirmModal === true;
+
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
 
@@ -60,13 +61,18 @@ function setState(newState) {
     if (isCheckout) {
         setCheckoutFormData(formData);
     }
+    
+    // Handle the pop-up logic only on state change to avoid duplicates
+    if (isModalBeingClosed) {
+        document.querySelectorAll('#confirmation-modal').forEach(el => el.remove());
+    }
 
     if (newState.notify) {
         setTimeout(() => setState({ notify: null }), 3500);
     }
 }
 
-// FIX: Helper functions to get and set checkout form data
+// Helper functions for forms
 function getCheckoutFormData() {
     const data = {};
     const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
@@ -140,7 +146,7 @@ function addToCart(id, qty = 1) {
     }
     
     nextCart[id] = currentQty + qty;
-    setState({ cart: nextCart, notify: 'Added to cart' });
+    setState({ cart: nextCart, notify: 'Product added to cart!' }); // Updated notification message
 }
 
 function updateCart(id, qty) {
