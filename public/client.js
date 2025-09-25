@@ -1,8 +1,9 @@
 // public/client.js
 // --- Helpers ---
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
-const ADMIN_PASSWORD = "admin123";
+const ADMIN_PASSWORD = "1234519196@Saif";
 
+// Render-এর লাইভ URL ব্যবহার করা হয়েছে
 const API_URL = 'https://brosmartecommerce.onrender.com/api';
 
 // --- State Management ---
@@ -432,6 +433,7 @@ function Cart(products, cart) {
     `;
 }
 
+// Checkout ফাংশন আপডেট করা হয়েছে
 function Checkout(products, cart, coupons, appliedCoupon) {
     const items = Object.entries(cart).map(([pid, qty]) => {
         const p = products.find(x => x.id === pid);
@@ -450,6 +452,10 @@ function Checkout(products, cart, coupons, appliedCoupon) {
                 <div>
                     <label class="block text-sm text-red-200">Name</label>
                     <input id="checkout-name" class="w-full p-2 border rounded bg-black text-white" />
+                </div>
+                <div>
+                    <label class="block text-sm text-red-200">Email Address</label>
+                    <input id="checkout-email" type="email" class="w-full p-2 border rounded bg-black text-white" />
                 </div>
                 <div>
                     <label class="block text-sm text-red-200">Phone Number (Must start with +88)</label>
@@ -478,7 +484,6 @@ function Checkout(products, cart, coupons, appliedCoupon) {
                         <button id="place-order-btn" class="px-4 py-2 rounded bg-red-600 text-black font-semibold">Place Order</button>
                     </div>
                 </div>
-                <div class="mt-4 text-sm text-red-300">Available coupons: ${coupons.map(c => c.code).join(', ')}</div>
             </div>
         </div>
     `;
@@ -837,6 +842,7 @@ function Footer(content) {
     `;
 }
 
+// এখানে ConfirmationModal ফাংশনটি পরিবর্তন করা হয়েছে
 function ConfirmationModal(trackingId) {
     return `
         <div id="confirmation-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
@@ -847,7 +853,7 @@ function ConfirmationModal(trackingId) {
                 <p class="mt-3 font-mono text-sm">Tracking ID: <strong>${trackingId}</strong></p>
                 <p class="mt-1 text-xs text-gray-600">Please pay on delivery.</p>
                 <div class="mt-4 text-right">
-                    <button id="close-modal-btn" class="px-4 py-2 rounded bg-red-600 text-black font-semibold">OK</button>
+                    <button onclick="document.querySelector('#confirmation-modal').remove();" class="px-4 py-2 rounded bg-red-600 text-black font-semibold">OK</button>
                 </div>
             </div>
         </div>
@@ -912,26 +918,30 @@ function attachEventListeners() {
     if (placeOrderBtn) {
         placeOrderBtn.onclick = () => {
             const name = document.getElementById('checkout-name').value;
+            const email = document.getElementById('checkout-email').value; // নতুন যোগ করা হয়েছে
             const phone = document.getElementById('checkout-phone').value;
             const address = document.getElementById('checkout-address').value;
 
-            if (!name || !address) {
-                alert('Please provide Name and Address.');
+            if (!name || !email || !address) {
+                alert('Please provide Name, Email and Address.');
+                return;
+            }
+            if (!email.includes('@')) { // সাধারণ ইমেইল ভ্যালিডেশন
+                alert('Please provide a valid email address.');
                 return;
             }
             if (!phone || !phone.startsWith('+88')) {
                 alert('Phone Number must start with +88 (e.g., +8801XXXXXXXXX).');
                 return;
             }
-            placeOrder({ name, phone, address });
+
+            placeOrder({ name, email, phone, address });
         };
     }
     
-    const closeModalBtn = document.getElementById('close-modal-btn');
-    if (closeModalBtn) {
-        closeModalBtn.onclick = () => setState({ showConfirmModal: false, lastTracking: null });
-    }
-    
+    // closeModalBtn এর ইভেন্ট লিসনারটি এখান থেকে সরিয়ে দেওয়া হয়েছে
+    // কারণ এখন HTML-এ onclick অ্যাট্রিবিউট ব্যবহার করা হয়েছে
+
     const adminLoginBtn = document.getElementById('admin-login-btn');
     if (adminLoginBtn) {
         adminLoginBtn.onclick = () => {
@@ -1220,4 +1230,6 @@ function attachEventListeners() {
         };
     });
 }
+
+// Initial fetch to load state
 window.onload = fetchState;
