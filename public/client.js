@@ -1,7 +1,7 @@
 // public/client.js
 // --- Helpers ---
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
-const ADMIN_PASSWORD = "admin123";
+const ADMIN_PASSWORD = "loveyou";
 
 const API_URL = window.location.origin + '/api';
 
@@ -20,7 +20,7 @@ let state = {
     appliedCoupon: null,
     showConfirmModal: false,
     lastTracking: null,
-    viewData: { tab: 'dashboard', slideIndex: 0, productId: null, order: null }
+    viewData: { tab: 'dashboard', slideIndex: 0, productId: null, order: null, editingFooterLink: null, editingFooterCategory: null }
 };
 
 let slideshowInterval;
@@ -29,6 +29,8 @@ async function fetchState() {
     try {
         const response = await fetch(`${API_URL}/data`);
         const data = await response.json();
+        const dashboardData = state.adminAuthed ? await fetch(`${API_URL}/dashboard`).then(res => res.json()) : null;
+
         setState({
             products: data.products,
             orders: data.orders,
@@ -36,6 +38,7 @@ async function fetchState() {
             slides: data.slides,
             features: data.features,
             content: data.content,
+            dashboard: dashboardData
         });
     } catch (error) {
         console.error('Failed to fetch initial state:', error);
@@ -43,14 +46,15 @@ async function fetchState() {
     }
 }
 
-// এই ফাংশনটি আপডেট করা হয়েছে যাতে পপ-আপ বারবার না আসে
 function setState(newState) {
-    const isCheckout = newState.view === 'checkout' || state.view === 'checkout' && newState.view === state.view;
+    const isCheckout = newState.view === 'checkout';
     let formData = {};
     if (isCheckout) {
         formData = getCheckoutFormData();
     }
     
+    const isModalBeingClosed = newState.showConfirmModal === false && state.showConfirmModal === true;
+
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
 
@@ -59,13 +63,16 @@ function setState(newState) {
     if (isCheckout) {
         setCheckoutFormData(formData);
     }
+    
+    if (isModalBeingClosed) {
+        document.querySelectorAll('#confirmation-modal').forEach(el => el.remove());
+    }
 
     if (newState.notify) {
         setTimeout(() => setState({ notify: null }), 3500);
     }
 }
 
-// Helper functions to get and set checkout form data
 function getCheckoutFormData() {
     const data = {};
     const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
@@ -606,9 +613,10 @@ function DashboardTab(state) {
             <h3 class="text-xl font-semibold border-b border-red-800 pb-2">Quick Overview</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 ${statCard('Total Products', totalProducts, 'fa-box-open', 'text-yellow-400')}
-                ${statCard('Total Orders', totalOrders, 'fa-truck', 'text-red-500')}
-                ${statCard('Pending Orders', pendingOrders, 'fa-clock', 'text-yellow-500')}
-                ${statCard('Active Coupons', totalCoupons, 'fa-tag', 'text-green-500')}
+                ${statCard('Total Orders', state.dashboard?.totalOrders || '...', 'fa-truck', 'text-red-500')}
+                ${statCard('Pending Orders', state.dashboard?.pendingOrders || '...', 'fa-clock', 'text-yellow-500')}
+                ${statCard('Daily Orders', state.dashboard?.dailyOrders || '...', 'fa-calendar-day', 'text-blue-500')}
+                ${statCard('Monthly Orders', state.dashboard?.monthlyOrders || '...', 'fa-calendar-alt', 'text-purple-500')}
             </div>
             <h3 class="text-xl font-semibold border-b border-red-800 pb-2 pt-4">Recent Orders (Last 5)</h3>
             <div class="space-y-2">
@@ -629,6 +637,24 @@ function DashboardTab(state) {
 }
 
 function ContentAdminTab(features, content) {
+    const FooterLinkEditor = (title, field, links) => `
+        <div class="border p-3 rounded border-red-800 space-y-3">
+            <h3 class="font-semibold mb-2">${title}</h3>
+            ${links.map(link => `
+                <div class="flex items-center gap-3 border-b border-red-900 pb-2">
+                    <i class="${link.icon || 'fas fa-link'} text-xl text-red-500 w-8 text-center"></i>
+                    <div class="flex-1">
+                        <input id="edit-${field}-text-${link.id}" value="${link.text}" class="w-full p-1 border rounded bg-black text-white" />
+                        <input id="edit-${field}-url-${link.id}" value="${link.url}" placeholder="URL" class="w-full p-1 border rounded bg-black text-white mt-1" />
+                    </div>
+                    <div>
+                        <button class="save-footer-link-btn px-3 py-1 rounded bg-green-600 text-black" data-field="${field}" data-id="${link.id}">Save</button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
     return `
         <div class="space-y-8">
             <div class="border p-3 rounded border-red-800 space-y-3">
@@ -643,6 +669,11 @@ function ContentAdminTab(features, content) {
                 </div>
                 <button id="save-content-btn" class="px-3 py-2 rounded bg-green-600 text-black">Save Content</button>
             </div>
+
+            ${FooterLinkEditor('Shop Now Links', 'shopLinks', content.shopLinks || [])}
+            ${FooterLinkEditor('Information Links', 'infoLinks', content.infoLinks || [])}
+            ${FooterLinkEditor('Social Media Links', 'socialLinks', content.socialLinks || [])}
+
             <div class="border p-3 rounded border-red-800 space-y-3">
                 <h3 class="font-semibold mb-2">Home Page Features Bar (${features.length}/3)</h3>
                 ${features.map(f => `
@@ -858,8 +889,8 @@ function Footer(content) {
                 <div>
                     <h4 class="font-semibold text-white mb-3">SHOP NOW</h4>
                     <ul class="space-y-2">
-                        ${(content.footerLinks || []).map(link => `
-                            <li><button class="nav-btn p-0 hover:text-red-500" data-view="shop">${link.text}</button></li>
+                        ${(content.shopLinks || []).map(link => `
+                            <li><a class="hover:text-red-500" href="${link.url}">${link.text}</a></li>
                         `).join('')}
                     </ul>
                 </div>
@@ -1083,11 +1114,37 @@ function attachEventListeners() {
         saveContentBtn.onclick = async () => {
             const footerAbout = document.getElementById('edit-footer-about').value;
             const copyright = document.getElementById('edit-copyright').value;
+            
+            const shopLinks = [];
+            document.querySelectorAll('.shop-link-item').forEach(el => {
+                shopLinks.push({ 
+                    id: el.dataset.id, 
+                    text: document.getElementById(`edit-shopLinks-text-${el.dataset.id}`).value,
+                    url: document.getElementById(`edit-shopLinks-url-${el.dataset.id}`).value,
+                });
+            });
+            const infoLinks = [];
+            document.querySelectorAll('.info-link-item').forEach(el => {
+                infoLinks.push({ 
+                    id: el.dataset.id, 
+                    text: document.getElementById(`edit-infoLinks-text-${el.dataset.id}`).value,
+                    url: document.getElementById(`edit-infoLinks-url-${el.dataset.id}`).value,
+                });
+            });
+            const socialLinks = [];
+            document.querySelectorAll('.social-link-item').forEach(el => {
+                socialLinks.push({ 
+                    id: el.dataset.id, 
+                    icon: document.getElementById(`edit-socialLinks-icon-${el.dataset.id}`).value,
+                    url: document.getElementById(`edit-socialLinks-url-${el.dataset.id}`).value,
+                });
+            });
+
             try {
                 await fetch(`${API_URL}/content`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ footerAbout, copyright })
+                    body: JSON.stringify({ footerAbout, copyright, shopLinks, infoLinks, socialLinks })
                 });
                 await fetchState();
                 setState({ notify: 'Website content saved!' });
@@ -1126,7 +1183,7 @@ function attachEventListeners() {
         };
     });
 
-    document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+    document.querySelectorAll('.cancel-feature-edit-btn').forEach(btn => {
         btn.onclick = () => setState({ viewData: { ...state.viewData, editingFeature: null } });
     });
 
@@ -1246,20 +1303,18 @@ function attachEventListeners() {
     document.querySelectorAll('.save-product-btn').forEach(btn => {
         btn.onclick = async (e) => {
             const id = e.target.dataset.id;
-            const newPrice = Number(document.getElementById(`edit-price-${id}`).value);
-            const newStock = Number(document.getElementById(`edit-stock-${id}`).value);
-            if (isNaN(newPrice) || newPrice <= 0 || isNaN(newStock)) {
-                alert('Price and Stock must be valid numbers.');
-                return;
-            }
             const patch = {
                 title: document.getElementById(`edit-title-${id}`).value,
-                price: newPrice,
-                stock: newStock,
+                price: Number(document.getElementById(`edit-price-${id}`).value),
+                stock: Number(document.getElementById(`edit-stock-${id}`).value),
                 image: document.getElementById(`edit-image-${id}`).value,
                 description: document.getElementById(`edit-desc-${id}`).value,
                 specialCoupon: document.getElementById(`edit-special-coupon-${id}`).value.trim() || null
             };
+            if (isNaN(patch.price) || patch.price <= 0 || isNaN(patch.stock)) {
+                alert('Price and Stock must be valid numbers.');
+                return;
+            }
             try {
                 await fetch(`${API_URL}/products/${id}`, {
                     method: 'PUT',
@@ -1371,4 +1426,5 @@ function attachEventListeners() {
     }
 }
 
+// Initial fetch to load state
 window.onload = fetchState;
