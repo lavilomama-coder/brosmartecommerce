@@ -7,14 +7,12 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// MongoDB connection string
 const mongoURI = 'mongodb+srv://lavilomama:lavilomama@cluster0.3vszla0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 mongoose.connect(mongoURI)
     .then(() => console.log('MongoDB connected successfully'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -218,6 +216,26 @@ app.post('/api/orders', async (req, res) => {
         res.status(201).json(order);
     } catch (err) {
         res.status(500).json({ message: 'Failed to place order', error: err.message });
+    }
+});
+
+app.get('/api/orders/check', async (req, res) => {
+    const { query } = req.query;
+    try {
+        const order = await Order.findOne({
+            $or: [
+                { 'tracking': query },
+                { 'customer.phone': query },
+                { 'customer.email': query }
+            ]
+        });
+        if (order) {
+            res.json(order);
+        } else {
+            res.status(404).json({ message: 'Order not found.' });
+        }
+    } catch (err) {
+        res.status(500).json({ message: 'Error checking order status', error: err.message });
     }
 });
 
