@@ -7,16 +7,19 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// MongoDB connection string
 const mongoURI = 'mongodb+srv://lavilomama:lavilomama@cluster0.3vszla0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 mongoose.connect(mongoURI)
     .then(() => console.log('MongoDB connected successfully'))
     .catch(err => console.error('MongoDB connection error:', err));
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- Mongoose Schemas and Models ---
 const productSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     title: String,
@@ -45,9 +48,9 @@ const orderSchema = new mongoose.Schema({
     paymentMethod: String,
     customer: {
         name: String,
-        email: String, // Updated
+        email: String, // Added
         phone: String,
-        address: String
+        address: String // To store the full address string
     },
     status: { type: String, default: 'pending' }
 });
@@ -87,6 +90,7 @@ const Slide = mongoose.model('Slide', slideSchema);
 const Feature = mongoose.model('Feature', featureSchema);
 const Content = mongoose.model('Content', contentSchema);
 
+// --- Sample Data Injection ---
 async function injectSampleData() {
     const productsCount = await Product.countDocuments();
     if (productsCount === 0) {
@@ -140,6 +144,7 @@ async function injectSampleData() {
 }
 injectSampleData();
 
+// --- API Endpoints ---
 app.get('/api/data', async (req, res) => {
     try {
         const [products, orders, coupons, slides, features, content] = await Promise.all([
