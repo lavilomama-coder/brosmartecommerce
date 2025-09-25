@@ -43,6 +43,7 @@ async function fetchState() {
     }
 }
 
+// এই ফাংশনটি আপডেট করা হয়েছে যাতে Checkout পেজের ডেটা হারিয়ে না যায়
 function setState(newState) {
     const isCheckout = newState.view === 'checkout';
     let formData = {};
@@ -50,9 +51,6 @@ function setState(newState) {
         formData = getCheckoutFormData();
     }
     
-    // Check if the order confirmation pop-up is being closed
-    const isModalBeingClosed = newState.showConfirmModal === false && state.showConfirmModal === true;
-
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
 
@@ -61,18 +59,13 @@ function setState(newState) {
     if (isCheckout) {
         setCheckoutFormData(formData);
     }
-    
-    // Handle the pop-up logic only on state change to avoid duplicates
-    if (isModalBeingClosed) {
-        document.querySelectorAll('#confirmation-modal').forEach(el => el.remove());
-    }
 
     if (newState.notify) {
         setTimeout(() => setState({ notify: null }), 3500);
     }
 }
 
-// Helper functions for forms
+// Helper functions to get and set checkout form data
 function getCheckoutFormData() {
     const data = {};
     const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
@@ -795,7 +788,7 @@ function OrderAdminTab(orders) { return `
                                 </div>
                                 <div class="text-right">
                                     <div class="font-semibold text-red-400">${money(o.total)}</div>
-                                    <div class="text-sm ${o.status === 'shipped' ? 'text-green-300' : 'text-yellow-300'}">${o.status || 'pending'}</div>
+                                    <div class="text-sm ${o.status === 'shipped' ? 'text-green-300' : 'text-yellow-300'}">${o.status}</div>
                                 </div>
                             </div>
                             <div class="mt-2 text-sm text-red-200">
