@@ -3,6 +3,7 @@
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
 const ADMIN_PASSWORD = "1234519196@Saif";
 
+// Final fix: API_URL now dynamically fetches the current origin to avoid domain name issues
 const API_URL = window.location.origin + '/api';
 
 // --- State Management ---
@@ -43,9 +44,11 @@ async function fetchState() {
     }
 }
 
+// এই ফাংশনটি আপডেট করা হয়েছে যাতে Checkout পেজের ডেটা হারিয়ে না যায়
 function setState(newState) {
-    const isCheckout = newState.view === 'checkout';
+    const isCheckout = newState.view === 'checkout' || state.view === 'checkout' && newState.view === state.view;
     let formData = {};
+
     if (isCheckout) {
         formData = getCheckoutFormData();
     }
@@ -895,7 +898,6 @@ function Footer(content) {
     `;
 }
 
-// এখানে ConfirmationModal ফাংশনটি পরিবর্তন করা হয়েছে
 function ConfirmationModal(trackingId) {
     return `
         <div id="confirmation-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
@@ -913,23 +915,20 @@ function ConfirmationModal(trackingId) {
     `;
 }
 
-// নতুন ফাংশন: অর্ডার ট্র্যাকার পেজ তৈরি করার জন্য
 function OrderTrackerPage(order) {
     let orderInfo = '';
-    if (order) {
+    if (order && order.id) {
         const statusSteps = [
             { name: 'ENTERED', icon: 'fas fa-clipboard-list' },
             { name: 'PROCESSED', icon: 'fas fa-cogs' },
-            { name: 'MANUFACTURED', icon: 'fas fa-tshirt' },
             { name: 'SHIPPED', icon: 'fas fa-shipping-fast' }
         ];
 
-        const orderStatus = order.status.toUpperCase();
         let currentStepIndex = -1;
-        if (orderStatus === 'PENDING') {
+        if (order.status === 'pending') {
             currentStepIndex = 0;
-        } else if (orderStatus === 'SHIPPED') {
-            currentStepIndex = 3;
+        } else if (order.status === 'shipped') {
+            currentStepIndex = 2; // Shipped is the 3rd step
         }
         
         orderInfo = `
@@ -961,7 +960,7 @@ function OrderTrackerPage(order) {
             </div>
         `;
     } else {
-        orderInfo = `<div class="mt-8 p-6 text-center text-red-300">Please enter your order details to check the status.</div>`;
+        orderInfo = `<div class="mt-8 p-6 text-center text-red-300">Order not found or an error occurred.</div>`;
     }
 
     return `
@@ -1026,16 +1025,6 @@ function attachEventListeners() {
             const code = document.getElementById('coupon-code-input').value;
             const coupon = applyCouponByCode(code);
             
-            const formData = {
-                'checkout-name': document.getElementById('checkout-name').value,
-                'checkout-email': document.getElementById('checkout-email').value,
-                'checkout-phone': document.getElementById('checkout-phone').value,
-                'checkout-street': document.getElementById('checkout-street').value,
-                'checkout-city': document.getElementById('checkout-city').value,
-                'checkout-postal': document.getElementById('checkout-postal').value,
-                'checkout-country': document.getElementById('checkout-country').value,
-            };
-
             if (coupon) {
                 setState({ appliedCoupon: coupon, notify: `Applied ${coupon.code}` });
             } else {
@@ -1364,7 +1353,6 @@ function attachEventListeners() {
         };
     });
 
-    // Added Order Tracking listener
     const checkOrderBtn = document.getElementById('check-order-btn');
     if (checkOrderBtn) {
         checkOrderBtn.onclick = async () => {
