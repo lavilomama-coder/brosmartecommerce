@@ -80,7 +80,10 @@ const featureSchema = new mongoose.Schema({
 const contentSchema = new mongoose.Schema({
     id: String,
     footerAbout: String,
-    copyright: String
+    copyright: String,
+    footerLinks: [{ text: String, url: String, id: String }],
+    infoLinks: [{ text: String, url: String, id: String }],
+    socialLinks: [{ icon: String, url: String, id: String }]
 });
 
 const Product = mongoose.model('Product', productSchema);
@@ -136,7 +139,25 @@ async function injectSampleData() {
         const defaultContent = {
             id: 'site_content',
             footerAbout: 'Your one-stop destination for quality products at unbeatable prices. We offer a seamless shopping experience and quick delivery.',
-            copyright: '© 2025 BrosMart. All rights reserved.'
+            copyright: '© 2025 BrosMart. All rights reserved.',
+            footerLinks: [
+                { text: 'Shop All', url: '#', id: 'FL1' },
+                { text: 'Categories', url: '#', id: 'FL2' },
+                { text: 'My Account', url: '#', id: 'FL3' },
+                { text: 'Contact Us', url: '#', id: 'FL4' }
+            ],
+            infoLinks: [
+                { text: 'FAQs', url: '#', id: 'IL1' },
+                { text: 'Shipping & Returns', url: '#', id: 'IL2' },
+                { text: 'Privacy Policy', url: '#', id: 'IL3' },
+                { text: 'Terms of Service', url: '#', id: 'IL4' }
+            ],
+            socialLinks: [
+                { icon: 'fab fa-facebook-f', url: 'https://facebook.com', id: 'SL1' },
+                { icon: 'fab fa-twitter', url: 'https://twitter.com', id: 'SL2' },
+                { icon: 'fab fa-instagram', url: 'https://instagram.com', id: 'SL3' },
+                { icon: 'fab fa-linkedin-in', url: 'https://linkedin.com', id: 'SL4' }
+            ]
         };
         await Content.create(defaultContent);
         console.log('Sample content injected.');
@@ -161,7 +182,6 @@ app.get('/api/data', async (req, res) => {
     }
 });
 
-// নতুন এপিআই: ড্যাশবোর্ডের ডেটা
 app.get('/api/dashboard', async (req, res) => {
     try {
         const totalOrders = await Order.countDocuments();
@@ -181,6 +201,20 @@ app.get('/api/dashboard', async (req, res) => {
     }
 });
 
+// New API to update specific footer links
+app.put('/api/content/footer-links', async (req, res) => {
+    try {
+        const { field, links } = req.body;
+        const updatedContent = await Content.findOneAndUpdate(
+            { id: 'site_content' },
+            { [field]: links },
+            { new: true }
+        );
+        res.json(updatedContent);
+    } catch (err) {
+        res.status(400).json({ message: 'Error updating footer links', error: err.message });
+    }
+});
 
 app.post('/api/products', async (req, res) => {
     try {
