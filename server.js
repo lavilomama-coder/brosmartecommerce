@@ -7,12 +7,14 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// MongoDB connection string
 const mongoURI = 'mongodb+srv://lavilomama:lavilomama@cluster0.3vszla0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 mongoose.connect(mongoURI)
     .then(() => console.log('MongoDB connected successfully'))
     .catch(err => console.error('MongoDB connection error:', err));
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -46,9 +48,9 @@ const orderSchema = new mongoose.Schema({
     paymentMethod: String,
     customer: {
         name: String,
-        email: String, // Added
+        email: String,
         phone: String,
-        address: String // To store the full address string
+        address: String
     },
     status: { type: String, default: 'pending' }
 });
