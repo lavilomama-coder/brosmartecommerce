@@ -94,7 +94,7 @@ const Slide = mongoose.model('Slide', slideSchema);
 const Feature = mongoose.model('Feature', featureSchema);
 const Content = mongoose.model('Content', contentSchema);
 
-// --- Sample Data Injection (Updated) ---
+// --- Sample Data Injection ---
 async function injectSampleData() {
     const productsCount = await Product.countDocuments();
     if (productsCount === 0) {
