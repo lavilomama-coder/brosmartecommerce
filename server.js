@@ -7,12 +7,14 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// MongoDB connection string
 const mongoURI = 'mongodb+srv://lavilomama:lavilomama@cluster0.3vszla0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 mongoose.connect(mongoURI)
     .then(() => console.log('MongoDB connected successfully'))
     .catch(err => console.error('MongoDB connection error:', err));
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -75,14 +77,10 @@ const featureSchema = new mongoose.Schema({
     subtitle: String
 });
 
-// Updated content schema to include footer links and social media
 const contentSchema = new mongoose.Schema({
     id: String,
     footerAbout: String,
-    copyright: String,
-    footerLinks: [{ text: String, url: String }],
-    infoLinks: [{ text: String, url: String }],
-    socialLinks: [{ icon: String, url: String }]
+    copyright: String
 });
 
 const Product = mongoose.model('Product', productSchema);
@@ -92,7 +90,7 @@ const Slide = mongoose.model('Slide', slideSchema);
 const Feature = mongoose.model('Feature', featureSchema);
 const Content = mongoose.model('Content', contentSchema);
 
-// --- Sample Data Injection (Updated) ---
+// --- Sample Data Injection ---
 async function injectSampleData() {
     const productsCount = await Product.countDocuments();
     if (productsCount === 0) {
@@ -138,25 +136,7 @@ async function injectSampleData() {
         const defaultContent = {
             id: 'site_content',
             footerAbout: 'Your one-stop destination for quality products at unbeatable prices. We offer a seamless shopping experience and quick delivery.',
-            copyright: '© 2025 BrosMart. All rights reserved.',
-            footerLinks: [
-                { text: 'Shop All', url: '#', id: 'FL1' },
-                { text: 'Categories', url: '#', id: 'FL2' },
-                { text: 'My Account', url: '#', id: 'FL3' },
-                { text: 'Contact Us', url: '#', id: 'FL4' }
-            ],
-            infoLinks: [
-                { text: 'FAQs', url: '#', id: 'IL1' },
-                { text: 'Shipping & Returns', url: '#', id: 'IL2' },
-                { text: 'Privacy Policy', url: '#', id: 'IL3' },
-                { text: 'Terms of Service', url: '#', id: 'IL4' }
-            ],
-            socialLinks: [
-                { icon: 'fab fa-facebook-f', url: '#', id: 'SL1' },
-                { icon: 'fab fa-twitter', url: '#', id: 'SL2' },
-                { icon: 'fab fa-instagram', url: '#', id: 'SL3' },
-                { icon: 'fab fa-linkedin-in', url: '#', id: 'SL4' }
-            ]
+            copyright: '© 2025 BrosMart. All rights reserved.'
         };
         await Content.create(defaultContent);
         console.log('Sample content injected.');
@@ -181,20 +161,26 @@ app.get('/api/data', async (req, res) => {
     }
 });
 
-// New API to update specific footer links
-app.put('/api/content/footer-links', async (req, res) => {
+// নতুন এপিআই: ড্যাশবোর্ডের ডেটা
+app.get('/api/dashboard', async (req, res) => {
     try {
-        const { field, links } = req.body;
-        const updatedContent = await Content.findOneAndUpdate(
-            { id: 'site_content' },
-            { [field]: links },
-            { new: true }
-        );
-        res.json(updatedContent);
+        const totalOrders = await Order.countDocuments();
+        const pendingOrders = await Order.countDocuments({ status: 'pending' });
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const dailyOrders = await Order.countDocuments({ createdAt: { $gte: startOfDay } });
+
+        const startOfMonth = new Date(startOfDay.getFullYear(), startOfDay.getMonth(), 1);
+        const monthlyOrders = await Order.countDocuments({ createdAt: { $gte: startOfMonth } });
+        
+        res.json({ totalOrders, pendingOrders, dailyOrders, monthlyOrders });
+
     } catch (err) {
-        res.status(400).json({ message: 'Error updating footer links', error: err.message });
+        res.status(500).json({ message: 'Error fetching dashboard data', error: err.message });
     }
 });
+
 
 app.post('/api/products', async (req, res) => {
     try {
