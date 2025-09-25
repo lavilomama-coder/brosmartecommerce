@@ -1,7 +1,7 @@
 // public/client.js
 // --- Helpers ---
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
-const ADMIN_PASSWORD = "loveyou";
+const ADMIN_PASSWORD = "admin123";
 
 const API_URL = window.location.origin + '/api';
 
@@ -45,15 +45,12 @@ async function fetchState() {
 
 // এই ফাংশনটি আপডেট করা হয়েছে যাতে পপ-আপ বারবার না আসে
 function setState(newState) {
-    const isCheckout = newState.view === 'checkout';
+    const isCheckout = newState.view === 'checkout' || state.view === 'checkout' && newState.view === state.view;
     let formData = {};
     if (isCheckout) {
         formData = getCheckoutFormData();
     }
     
-    // Check if the order confirmation pop-up is being closed
-    const isModalBeingClosed = newState.showConfirmModal === false && state.showConfirmModal === true;
-
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
 
@@ -62,17 +59,13 @@ function setState(newState) {
     if (isCheckout) {
         setCheckoutFormData(formData);
     }
-    
-    // Handle the pop-up logic only on state change to avoid duplicates
-    if (isModalBeingClosed) {
-        document.querySelectorAll('#confirmation-modal').forEach(el => el.remove());
-    }
 
     if (newState.notify) {
         setTimeout(() => setState({ notify: null }), 3500);
     }
 }
 
+// Helper functions to get and set checkout form data
 function getCheckoutFormData() {
     const data = {};
     const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
@@ -865,28 +858,25 @@ function Footer(content) {
                 <div>
                     <h4 class="font-semibold text-white mb-3">SHOP NOW</h4>
                     <ul class="space-y-2">
-                        <li><button class="nav-btn p-0 hover:text-red-500" data-view="shop">Shop All</button></li>
-                        <li><a class="hover:text-red-500" href="#">Categories</a></li>
-                        <li><a class="hover:text-red-500" href="#">My Account</a></li>
-                        <li><a class="hover:text-red-500" href="#">Contact Us</a></li>
+                        ${(content.footerLinks || []).map(link => `
+                            <li><button class="nav-btn p-0 hover:text-red-500" data-view="shop">${link.text}</button></li>
+                        `).join('')}
                     </ul>
                 </div>
                 <div>
                     <h4 class="font-semibold text-white mb-3">INFORMATION</h4>
                     <ul class="space-y-2">
-                        <li><a class="hover:text-red-500" href="#">FAQs</a></li>
-                        <li><a class="hover:text-red-500" href="#">Shipping & Returns</a></li>
-                        <li><a class="hover:text-red-500" href="#">Privacy Policy</a></li>
-                        <li><a class="hover:text-red-500" href="#">Terms of Service</a></li>
+                        ${(content.infoLinks || []).map(link => `
+                            <li><a class="hover:text-red-500" href="${link.url}">${link.text}</a></li>
+                        `).join('')}
                     </ul>
                 </div>
                 <div class="text-left sm:text-right">
                     <h4 class="font-semibold text-white mb-3">CONNECT</h4>
                     <div class="flex sm:justify-end space-x-4 text-xl">
-                        <a class="hover:text-red-500" href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a class="hover:text-red-500" href="#"><i class="fab fa-twitter"></i></a>
-                        <a class="hover:text-red-500" href="#"><i class="fab fa-instagram"></i></a>
-                        <a class="hover:text-red-500" href="#"><i class="fab fa-linkedin-in"></i></a>
+                        ${(content.socialLinks || []).map(link => `
+                            <a class="hover:text-red-500" href="${link.url}"><i class="${link.icon}"></i></a>
+                        `).join('')}
                     </div>
                 </div>
             </div>
@@ -941,7 +931,7 @@ function OrderTrackerPage(order) {
                 <h3 class="text-xl font-semibold mb-4">Order Details</h3>
                 <div class="space-y-2 text-red-200">
                     <div><strong>Tracking ID:</strong> ${order.tracking}</div>
-                    <div><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleString()}</div>
+                    <div><strong>Order Date:</strong> ${new Date().toLocaleString()}</div>
                     <div><strong>Customer:</strong> ${order.customer.name}</div>
                     <div><strong>Total:</strong> ${money(order.total)}</div>
                 </div>
@@ -1256,18 +1246,20 @@ function attachEventListeners() {
     document.querySelectorAll('.save-product-btn').forEach(btn => {
         btn.onclick = async (e) => {
             const id = e.target.dataset.id;
+            const newPrice = Number(document.getElementById(`edit-price-${id}`).value);
+            const newStock = Number(document.getElementById(`edit-stock-${id}`).value);
+            if (isNaN(newPrice) || newPrice <= 0 || isNaN(newStock)) {
+                alert('Price and Stock must be valid numbers.');
+                return;
+            }
             const patch = {
                 title: document.getElementById(`edit-title-${id}`).value,
-                price: Number(document.getElementById(`edit-price-${id}`).value),
-                stock: Number(document.getElementById(`edit-stock-${id}`).value),
+                price: newPrice,
+                stock: newStock,
                 image: document.getElementById(`edit-image-${id}`).value,
                 description: document.getElementById(`edit-desc-${id}`).value,
                 specialCoupon: document.getElementById(`edit-special-coupon-${id}`).value.trim() || null
             };
-            if (isNaN(patch.price) || patch.price <= 0 || isNaN(patch.stock)) {
-                alert('Price and Stock must be valid numbers.');
-                return;
-            }
             try {
                 await fetch(`${API_URL}/products/${id}`, {
                     method: 'PUT',
