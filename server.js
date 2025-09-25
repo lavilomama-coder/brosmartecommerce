@@ -154,10 +154,10 @@ async function injectSampleData() {
                 { text: 'Terms of Service', url: '#', id: 'IL4' }
             ],
             socialLinks: [
-                { icon: 'fab fa-facebook-f', url: '#', id: 'SOC1' },
-                { icon: 'fab fa-twitter', url: '#', id: 'SOC2' },
-                { icon: 'fab fa-instagram', url: '#', id: 'SOC3' },
-                { icon: 'fab fa-linkedin-in', url: '#', id: 'SOC4' }
+                { icon: 'fab fa-facebook-f', url: 'https://facebook.com', id: 'SOC1' },
+                { icon: 'fab fa-twitter', url: 'https://twitter.com', id: 'SOC2' },
+                { icon: 'fab fa-instagram', url: 'https://instagram.com', id: 'SOC3' },
+                { icon: 'fab fa-linkedin-in', url: 'https://linkedin.com', id: 'SOC4' }
             ]
         };
         await Content.create(defaultContent);
