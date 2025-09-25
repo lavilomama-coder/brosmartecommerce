@@ -1,8 +1,9 @@
 // public/client.js
 // --- Helpers ---
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
-const ADMIN_PASSWORD = "1234519196@Saif";
+const ADMIN_PASSWORD = "admin123";
 
+// API URL now dynamically fetches the current origin to avoid domain name issues
 const API_URL = window.location.origin + '/api';
 
 // --- State Management ---
@@ -44,13 +45,46 @@ async function fetchState() {
 }
 
 function setState(newState) {
+    // FIX: Preserve form data on state change in checkout view
+    const isCheckout = newState.view === 'checkout';
+    let formData = {};
+    if (isCheckout) {
+        formData = getCheckoutFormData();
+    }
+    
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
+
     renderApp();
+    
+    if (isCheckout) {
+        setCheckoutFormData(formData);
+    }
+
     if (newState.notify) {
         setTimeout(() => setState({ notify: null }), 3500);
     }
 }
+
+// FIX: Helper functions to get and set checkout form data
+function getCheckoutFormData() {
+    const data = {};
+    const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
+    formElements.forEach(el => {
+        data[el.id] = el.value;
+    });
+    return data;
+}
+
+function setCheckoutFormData(data) {
+    const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
+    formElements.forEach(el => {
+        if (data[el.id] !== undefined) {
+            el.value = data[el.id];
+        }
+    });
+}
+
 
 function money(n) { return `৳${(n / 100).toFixed(2)}`; }
 function genTracking() { const d = new Date(); return `BROS-${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`; }
@@ -82,7 +116,6 @@ function applyCouponByCode(code) {
         }
     }
     if (!c) {
-        // এখানে setState() কল না করে সরাসরি ফলস রিটার্ন করা হয়েছে
         return false;
     }
     return c;
@@ -805,7 +838,7 @@ function CouponEditor() { return `
                 <input id="coupon-value" placeholder="Value" value="10" class="p-2 border rounded bg-black text-white" />
                 <input id="coupon-desc" placeholder="Description" class="p-2 border rounded md:col-span-4 bg-black text-white" />
             </div>
-            <div class="mt-2"><button id="create-coupon-submit" class="px-3 py-2 rounded bg-red-600 text-black">Create coupon</button></div>
+            <div class="mt-2"><button id="create-coupon-submit" class="px-3 py-2 rounded bg-red-600 text-black">Add product</button></div>
         </div>
     `; }
     
