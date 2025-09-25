@@ -1,7 +1,7 @@
 // public/client.js
 // --- Helpers ---
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
-const ADMIN_PASSWORD = "loveyou";
+const ADMIN_PASSWORD = "admin123";
 
 const API_URL = window.location.origin + '/api';
 
@@ -20,7 +20,7 @@ let state = {
     appliedCoupon: null,
     showConfirmModal: false,
     lastTracking: null,
-    viewData: { tab: 'dashboard', slideIndex: 0, productId: null, order: null, editingFooterLink: null, editingFooterCategory: null }
+    viewData: { tab: 'dashboard', slideIndex: 0, productId: null, order: null }
 };
 
 let slideshowInterval;
@@ -595,10 +595,11 @@ function Admin(state) {
 }
 
 function DashboardTab(state) {
-    const totalOrders = state.orders.length;
-    const pendingOrders = state.orders.filter(o => o.status === 'pending').length;
-    const totalProducts = state.products.length;
-    const totalCoupons = state.coupons.length;
+    const totalOrders = state.dashboard?.totalOrders || '...';
+    const pendingOrders = state.dashboard?.pendingOrders || '...';
+    const dailyOrders = state.dashboard?.dailyOrders || '...';
+    const monthlyOrders = state.dashboard?.monthlyOrders || '...';
+
     const statCard = (title, value, icon, color) => `
         <div class="bg-gray-900 p-4 rounded-lg border border-red-800 flex items-center space-x-4">
             <i class="fas ${icon} text-3xl ${color}"></i>
@@ -612,11 +613,10 @@ function DashboardTab(state) {
         <div class="space-y-6">
             <h3 class="text-xl font-semibold border-b border-red-800 pb-2">Quick Overview</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                ${statCard('Total Products', totalProducts, 'fa-box-open', 'text-yellow-400')}
-                ${statCard('Total Orders', state.dashboard?.totalOrders || '...', 'fa-truck', 'text-red-500')}
-                ${statCard('Pending Orders', state.dashboard?.pendingOrders || '...', 'fa-clock', 'text-yellow-500')}
-                ${statCard('Daily Orders', state.dashboard?.dailyOrders || '...', 'fa-calendar-day', 'text-blue-500')}
-                ${statCard('Monthly Orders', state.dashboard?.monthlyOrders || '...', 'fa-calendar-alt', 'text-purple-500')}
+                ${statCard('Total Orders', totalOrders, 'fa-truck', 'text-red-500')}
+                ${statCard('Pending Orders', pendingOrders, 'fa-clock', 'text-yellow-500')}
+                ${statCard('Daily Orders', dailyOrders, 'fa-calendar-day', 'text-blue-500')}
+                ${statCard('Monthly Orders', monthlyOrders, 'fa-calendar-alt', 'text-purple-500')}
             </div>
             <h3 class="text-xl font-semibold border-b border-red-800 pb-2 pt-4">Recent Orders (Last 5)</h3>
             <div class="space-y-2">
@@ -636,22 +636,33 @@ function DashboardTab(state) {
     `;
 }
 
+// Updated ContentAdminTab to include footer link editing
 function ContentAdminTab(features, content) {
     const FooterLinkEditor = (title, field, links) => `
         <div class="border p-3 rounded border-red-800 space-y-3">
             <h3 class="font-semibold mb-2">${title}</h3>
             ${links.map(link => `
-                <div class="flex items-center gap-3 border-b border-red-900 pb-2">
+                <div class="flex items-center gap-3 border-b border-red-900 pb-2 link-item" data-field="${field}" data-id="${link.id}">
                     <i class="${link.icon || 'fas fa-link'} text-xl text-red-500 w-8 text-center"></i>
                     <div class="flex-1">
                         <input id="edit-${field}-text-${link.id}" value="${link.text}" class="w-full p-1 border rounded bg-black text-white" />
                         <input id="edit-${field}-url-${link.id}" value="${link.url}" placeholder="URL" class="w-full p-1 border rounded bg-black text-white mt-1" />
+                        ${link.icon ? `<input id="edit-${field}-icon-${link.id}" value="${link.icon}" placeholder="Icon Class (e.g. fab fa-facebook-f)" class="w-full p-1 border rounded bg-black text-white mt-1" />` : ''}
                     </div>
                     <div>
-                        <button class="save-footer-link-btn px-3 py-1 rounded bg-green-600 text-black" data-field="${field}" data-id="${link.id}">Save</button>
+                        <button class="delete-footer-link-btn px-3 py-1 rounded bg-red-700 text-black" data-field="${field}" data-id="${link.id}">Delete</button>
                     </div>
                 </div>
             `).join('')}
+            <div class="pt-3">
+                <h4 class="font-semibold">Add New Link</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                    <input id="new-${field}-text" placeholder="Text" class="p-2 border rounded bg-black text-white" />
+                    <input id="new-${field}-url" placeholder="URL" class="p-2 border rounded bg-black text-white" />
+                    ${field === 'socialLinks' ? `<input id="new-${field}-icon" placeholder="Icon Class (e.g. fab fa-whatsapp)" class="p-2 border rounded bg-black text-white" />` : ''}
+                </div>
+                <button class="add-footer-link-btn px-3 py-2 rounded bg-red-600 text-black mt-2" data-field="${field}">Add Link</button>
+            </div>
         </div>
     `;
 
@@ -669,7 +680,7 @@ function ContentAdminTab(features, content) {
                 </div>
                 <button id="save-content-btn" class="px-3 py-2 rounded bg-green-600 text-black">Save Content</button>
             </div>
-
+            
             ${FooterLinkEditor('Shop Now Links', 'shopLinks', content.shopLinks || [])}
             ${FooterLinkEditor('Information Links', 'infoLinks', content.infoLinks || [])}
             ${FooterLinkEditor('Social Media Links', 'socialLinks', content.socialLinks || [])}
@@ -962,7 +973,7 @@ function OrderTrackerPage(order) {
                 <h3 class="text-xl font-semibold mb-4">Order Details</h3>
                 <div class="space-y-2 text-red-200">
                     <div><strong>Tracking ID:</strong> ${order.tracking}</div>
-                    <div><strong>Order Date:</strong> ${new Date().toLocaleString()}</div>
+                    <div><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleString()}</div>
                     <div><strong>Customer:</strong> ${order.customer.name}</div>
                     <div><strong>Total:</strong> ${money(order.total)}</div>
                 </div>
@@ -1183,7 +1194,7 @@ function attachEventListeners() {
         };
     });
 
-    document.querySelectorAll('.cancel-feature-edit-btn').forEach(btn => {
+    document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
         btn.onclick = () => setState({ viewData: { ...state.viewData, editingFeature: null } });
     });
 
@@ -1426,5 +1437,4 @@ function attachEventListeners() {
     }
 }
 
-// Initial fetch to load state
 window.onload = fetchState;
