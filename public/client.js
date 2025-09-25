@@ -1,7 +1,7 @@
 // public/client.js
 // --- Helpers ---
 const uid = () => Math.random().toString(36).slice(2, 9).toUpperCase();
-const ADMIN_PASSWORD = "admin123";
+const ADMIN_PASSWORD = "1234519196@Saif";
 
 const API_URL = window.location.origin + '/api';
 
@@ -20,7 +20,7 @@ let state = {
     appliedCoupon: null,
     showConfirmModal: false,
     lastTracking: null,
-    viewData: { tab: 'dashboard', slideIndex: 0, productId: null }
+    viewData: { tab: 'dashboard', slideIndex: 0, productId: null, order: null }
 };
 
 let slideshowInterval;
@@ -44,16 +44,19 @@ async function fetchState() {
 }
 
 function setState(newState) {
+    const isCheckout = newState.view === 'checkout';
+    let formData = {};
+    if (isCheckout) {
+        formData = getCheckoutFormData();
+    }
+    
     state = { ...state, ...newState };
     if (newState.viewData) state.viewData = { ...state.viewData, ...newState.viewData };
+
+    renderApp();
     
-    // Checkout পেজে ডেটা ইনপুট ঠিক রাখার জন্য বিশেষ ব্যবস্থা
-    if (state.view === 'checkout') {
-        const formData = getCheckoutFormData();
-        renderApp();
+    if (isCheckout) {
         setCheckoutFormData(formData);
-    } else {
-        renderApp();
     }
 
     if (newState.notify) {
@@ -249,6 +252,8 @@ function renderApp() {
         mainHTML += Checkout(state.products, state.cart, state.coupons, state.appliedCoupon);
     } else if (state.view === 'admin') {
         mainHTML += Admin(state);
+    } else if (state.view === 'track-order') {
+        mainHTML += OrderTrackerPage(state.viewData.order);
     }
     mainHTML += '</main>';
     contentWrapper.insertAdjacentHTML('beforeend', mainHTML);
@@ -277,6 +282,9 @@ function Header(cart, adminAuthed) {
             <nav class="flex gap-3 items-center">
                 <button class="nav-btn px-3 py-2 rounded hover:bg-white/5 text-lg" data-view="shop" title="Home">
                     <i class="fas fa-home"></i>
+                </button>
+                <button class="nav-btn px-3 py-2 rounded hover:bg-white/5 text-lg" data-view="track-order" title="Track Order">
+                    <i class="fas fa-search-location"></i>
                 </button>
                 <button class="nav-btn px-3 py-2 rounded hover:bg-white/5 text-lg relative" data-view="cart" title="Cart">
                     <i class="fas fa-shopping-cart"></i> 
@@ -459,7 +467,6 @@ function Cart(products, cart) {
     `;
 }
 
-// Checkout ফাংশন আপডেট করা হয়েছে
 function Checkout(products, cart, coupons, appliedCoupon) {
     const items = Object.entries(cart).map(([pid, qty]) => {
         const p = products.find(x => x.id === pid);
@@ -879,6 +886,10 @@ function Footer(content) {
                 <button class="nav-btn px-6 py-3 rounded bg-red-600 text-black font-bold text-lg hover:bg-red-700 transition" data-view="admin">
                     Admin Login
                 </button>
+                <br>
+                <button class="nav-btn mt-3 px-6 py-3 rounded border border-red-800 text-red-300 font-bold text-lg hover:bg-red-900 transition" data-view="track-order">
+                    Track My Order
+                </button>
             </div>
         </footer>
     `;
@@ -902,6 +913,72 @@ function ConfirmationModal(trackingId) {
     `;
 }
 
+// নতুন ফাংশন: অর্ডার ট্র্যাকার পেজ তৈরি করার জন্য
+function OrderTrackerPage(order) {
+    let orderInfo = '';
+    if (order) {
+        const statusSteps = [
+            { name: 'ENTERED', icon: 'fas fa-clipboard-list' },
+            { name: 'PROCESSED', icon: 'fas fa-cogs' },
+            { name: 'MANUFACTURED', icon: 'fas fa-tshirt' },
+            { name: 'SHIPPED', icon: 'fas fa-shipping-fast' }
+        ];
+
+        const orderStatus = order.status.toUpperCase();
+        let currentStepIndex = -1;
+        if (orderStatus === 'PENDING') {
+            currentStepIndex = 0;
+        } else if (orderStatus === 'SHIPPED') {
+            currentStepIndex = 3;
+        }
+        
+        orderInfo = `
+            <div class="mt-8 bg-gray-900 rounded p-6 shadow border border-red-800">
+                <h3 class="text-xl font-semibold mb-4">Order Details</h3>
+                <div class="space-y-2 text-red-200">
+                    <div><strong>Tracking ID:</strong> ${order.tracking}</div>
+                    <div><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleString()}</div>
+                    <div><strong>Customer:</strong> ${order.customer.name}</div>
+                    <div><strong>Total:</strong> ${money(order.total)}</div>
+                </div>
+
+                <div class="mt-6">
+                    <h4 class="font-semibold mb-2">Order Status</h4>
+                    <div class="flex items-center justify-between relative mt-4 pb-12">
+                        <div class="absolute top-1/2 left-0 right-0 h-1 bg-red-800 transform -translate-y-1/2"></div>
+                        ${statusSteps.map((step, index) => `
+                            <div class="flex flex-col items-center flex-1 z-10">
+                                <div class="h-8 w-8 rounded-full z-10 flex items-center justify-center border-2 border-red-800 
+                                    ${index <= currentStepIndex ? 'bg-red-600 text-white' : 'bg-gray-900 text-gray-400'}">
+                                    <i class="${step.icon} text-sm"></i>
+                                </div>
+                                <div class="mt-2 text-center text-xs sm:text-sm
+                                    ${index <= currentStepIndex ? 'text-red-400 font-bold' : 'text-gray-400'}">${step.name}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        orderInfo = `<div class="mt-8 p-6 text-center text-red-300">Please enter your order details to check the status.</div>`;
+    }
+
+    return `
+        <div class="max-w-2xl mx-auto space-y-6">
+            <h2 class="text-xl font-semibold mb-4">Track Your Order</h2>
+            <div class="bg-gray-900 rounded shadow p-4 border border-red-800">
+                <label class="block text-sm text-red-200">Phone, Email or Tracking ID</label>
+                <div class="flex gap-2 mt-1">
+                    <input id="order-query-input" class="flex-1 p-2 border rounded bg-black text-white" placeholder="e.g. BROS-..." />
+                    <button id="check-order-btn" class="px-4 py-2 rounded bg-red-600 text-black font-semibold">Check</button>
+                </div>
+            </div>
+            <div id="order-details-container">${orderInfo}</div>
+        </div>
+    `;
+}
+
 // --- Event Listener Attachment and Handlers ---
 function attachEventListeners() {
     document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -912,8 +989,8 @@ function attachEventListeners() {
                 let viewDataUpdate = { productId: null, editingFeature: null, editingProduct: null };
                 if (newView === 'admin') {
                     viewDataUpdate.tab = 'dashboard';
-                } else {
-                    viewDataUpdate.tab = state.viewData.tab || 'products';
+                } else if (newView === 'track-order') {
+                    viewDataUpdate.order = null; // Clear previous order data
                 }
                 setState({ view: newView, viewData: { ...state.viewData, ...viewDataUpdate } });
             }
@@ -949,7 +1026,6 @@ function attachEventListeners() {
             const code = document.getElementById('coupon-code-input').value;
             const coupon = applyCouponByCode(code);
             
-            // Fixed: Store form data before re-rendering
             const formData = {
                 'checkout-name': document.getElementById('checkout-name').value,
                 'checkout-email': document.getElementById('checkout-email').value,
@@ -965,16 +1041,6 @@ function attachEventListeners() {
             } else {
                 setState({ appliedCoupon: null, notify: 'Invalid coupon' });
             }
-
-            // Fixed: Re-apply form data after state update and re-render
-            setTimeout(() => {
-                const formElements = document.querySelectorAll('#checkout-form-container input, #checkout-form-container textarea');
-                formElements.forEach(el => {
-                    if (formData[el.id]) {
-                        el.value = formData[el.id];
-                    }
-                });
-            }, 50); // A short delay to allow for the re-render
         };
     }
 
@@ -982,7 +1048,7 @@ function attachEventListeners() {
     if (placeOrderBtn) {
         placeOrderBtn.onclick = () => {
             const name = document.getElementById('checkout-name').value;
-            const email = document.getElementById('checkout-email').value; // Updated
+            const email = document.getElementById('checkout-email').value;
             const phone = document.getElementById('checkout-phone').value;
             const street = document.getElementById('checkout-street').value;
             const city = document.getElementById('checkout-city').value;
@@ -1013,6 +1079,15 @@ function attachEventListeners() {
         };
     }
     
+    document.getElementById('admin-login-btn')?.addEventListener('click', (e) => {
+        const password = document.getElementById('admin-password').value;
+        if (password === ADMIN_PASSWORD) {
+            setState({ adminAuthed: true, notify: 'Admin access granted' });
+        } else {
+            alert('Wrong password');
+        }
+    });
+
     document.getElementById('admin-logout-btn-main')?.addEventListener('click', () => setState({ adminAuthed: false }));
     document.getElementById('admin-logout-btn')?.addEventListener('click', () => setState({ adminAuthed: false }));
     document.querySelectorAll('.admin-tab-btn').forEach(btn => {
@@ -1288,6 +1363,29 @@ function attachEventListeners() {
             el.style.transform = 'rotateX(0deg) scale(1)';
         };
     });
+
+    // Added Order Tracking listener
+    const checkOrderBtn = document.getElementById('check-order-btn');
+    if (checkOrderBtn) {
+        checkOrderBtn.onclick = async () => {
+            const query = document.getElementById('order-query-input').value.trim();
+            if (query) {
+                try {
+                    const response = await fetch(`${API_URL}/orders/check?query=${encodeURIComponent(query)}`);
+                    const order = await response.json();
+                    if (response.ok) {
+                        setState({ view: 'track-order', viewData: { ...state.viewData, order: order } });
+                    } else {
+                        setState({ notify: order.message || 'Order not found.' });
+                    }
+                } catch (error) {
+                    setState({ notify: 'Error checking order status.' });
+                }
+            } else {
+                setState({ notify: 'Please enter a phone number, email, or tracking ID.' });
+            }
+        };
+    }
 }
 
 // Initial fetch to load state
