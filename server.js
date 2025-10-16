@@ -27,7 +27,7 @@ const productSchema = new mongoose.Schema({
     stock: Number,
     description: String,
     longDescription: String,
-    images: [{ type: String }], // UPDATED: Changed from single 'image' to array 'images'
+    images: [{ type: String }], // UPDATED: Array of image URLs
     specialCoupon: String
 });
 
