@@ -16,11 +16,12 @@ let state = {
     cart: {},
     view: 'shop',
     adminAuthed: false,
+    theme: 'dark', // NEW: Theme state
     notify: null,
     appliedCoupon: null,
     showConfirmModal: false,
     lastTracking: null,
-    viewData: { tab: 'dashboard', slideIndex: 0, productId: null, order: null }
+    viewData: { tab: 'dashboard', slideIndex: 0, productId: null, order: null, editingProduct: null, activeImageIndex: 0 } 
 };
 
 let slideshowInterval;
@@ -128,6 +129,22 @@ function applyCouponByCode(code) {
 }
 
 // --- Core Functions ---
+// NEW: Toggle Theme function
+function toggleTheme() {
+    const newTheme = state.theme === 'dark' ? 'light' : 'dark';
+    setState({ theme: newTheme });
+}
+
+function clearCart() {
+    if (Object.keys(state.cart).length === 0) {
+        setState({ notify: 'Cart is already empty.' });
+        return;
+    }
+    if (confirm('Are you sure you want to clear your entire cart?')) {
+        setState({ cart: {}, appliedCoupon: null, notify: 'Cart cleared!' });
+    }
+}
+
 function addToCart(id, qty = 1) {
     const product = state.products.find(p => p.id === id);
     if (!product || product.stock <= 0) {
@@ -238,6 +255,10 @@ function renderApp() {
     const container = document.getElementById('main-container');
     if (!container) return;
     if (slideshowInterval) clearInterval(slideshowInterval);
+    
+    // NEW: Apply theme class to body/app wrapper
+    document.body.className = state.theme;
+
     container.innerHTML = '';
     container.insertAdjacentHTML('beforeend', Header(state.cart, state.adminAuthed));
     container.insertAdjacentHTML('beforeend', '<div class="pt-24 md:pt-16" id="main-content-wrapper"></div>');
@@ -274,19 +295,29 @@ function renderApp() {
     if (state.view === 'shop') attachHeroEventListeners();
 }
 
+// UPDATED: Added Logo and Theme Toggle button
 function Header(cart, adminAuthed) {
     const cartCount = countCartItems(cart);
     const adminButton = adminAuthed ?
         `<button id="admin-logout-btn" class="px-3 py-2 rounded hover:bg-white/5">Logout</button>` : '';
+    
+    const LOGO_URL = "https://scontent.fdac5-2.fna.fbcdn.net/v/t39.30808-6/556263819_122156177132596323_4186853403867530037_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=-ud3dVgyA88Q7kNvwE1GWXI&_nc_oc=Adnf3mNfMzi3m5NlkhYDCfV6EoyaMEfJqhbA9q0i99WDQ5ruI5l7XIR3REtWAx1EcY&_nc_zt=23&_nc_ht=scontent.fdac5-2.fna&_nc_gid=H7ytSokLRqg3DMO0fQTbVA&oh=00_AfeilQvGVPTLNlAwO_uPBNcODyG_fnAYnKNNm62ZNA7DKA&oe=68F68AD1";
+
     return `
         <header class="flex items-center justify-between header-fixed">
-            <div>
-                <h1 class="text-3xl font-extrabold tracking-tight">
-                    <span class="brosmart-title">BROS</span><span class="text-red-500 brosmart-title">MART</span>
-                </h1>
-                <p class="text-sm text-red-300">Classical premium — black & red</p>
+            <div class="flex items-center gap-3">
+                <img src="${LOGO_URL}" alt="BrosMart Logo" class="h-10 w-10 object-contain rounded-full border border-red-800" />
+                <div>
+                    <h1 class="text-3xl font-extrabold tracking-tight">
+                        <span class="brosmart-title">BROS</span><span class="text-red-500 brosmart-title">MART</span>
+                    </h1>
+                    <p class="text-sm text-red-300">Classical premium — black & red</p>
+                </div>
             </div>
             <nav class="flex gap-3 items-center">
+                <button id="theme-toggle-btn" class="nav-btn px-3 py-2 rounded hover:bg-white/5 text-lg" title="Toggle Theme">
+                    <i class="fas ${state.theme === 'dark' ? 'fa-sun' : 'fa-moon'}"></i>
+                </button>
                 <button class="nav-btn px-3 py-2 rounded hover:bg-white/5 text-lg" data-view="shop" title="Home">
                     <i class="fas fa-home"></i>
                 </button>
@@ -361,7 +392,7 @@ function ProductCard(product) {
 
     return `
         <div class="bg-gray-900 rounded shadow-lg p-4 flex flex-col border border-red-800 product-card-3d product-detail-link cursor-pointer" data-id="${product.id}">
-            <img src="${product.image}" alt="${product.title}" class="h-44 w-full object-cover rounded" />
+            <img src="${product.images[0] || 'https://picsum.photos/400/300'}" alt="${product.title}" class="h-44 w-full object-cover rounded" />
             <div class="mt-3 flex-1">
                 <h3 class="font-semibold text-lg">${product.title}</h3>
                 <p class="text-sm text-red-200">${product.description}</p>
@@ -375,6 +406,34 @@ function ProductCard(product) {
                 <div>
                     <button ${disabled ? 'disabled' : ''} class="add-to-cart-btn px-3 py-2 rounded ${buttonClass}" data-id="${product.id}" onclick="event.stopPropagation();">Add</button>
                 </div>
+            </div>
+        </div>
+    `;
+}
+
+// NEW FUNCTION: Handles the multiple image display and thumbnail clicks
+function ProductImageGallery(product) {
+    if (!product.images || product.images.length === 0) {
+        return `<img src="https://picsum.photos/seed/placeholder/800/600" alt="No image" class="w-full h-auto object-cover rounded-lg shadow-xl" />`;
+    }
+
+    const activeImageIndex = state.viewData.productId === product.id ? state.viewData.activeImageIndex || 0 : 0;
+    const activeImage = product.images[activeImageIndex];
+
+    return `
+        <div>
+            <img id="main-product-image" src="${activeImage}" alt="${product.title}" 
+                class="w-full h-auto object-cover rounded-lg shadow-xl mb-4 max-h-96" />
+            
+            <div class="flex gap-2 overflow-x-auto p-1">
+                ${product.images.map((imgUrl, index) => `
+                    <img src="${imgUrl}" 
+                        alt="Thumbnail ${index + 1}" 
+                        data-id="${product.id}"
+                        data-index="${index}"
+                        class="product-thumbnail h-16 w-16 object-cover rounded cursor-pointer border-2 
+                        ${index === activeImageIndex ? 'border-red-500' : 'border-transparent hover:border-red-800'}" />
+                `).join('')}
             </div>
         </div>
     `;
@@ -399,7 +458,7 @@ function ProductDetail(products, productId) {
             <button class="nav-btn px-3 py-2 rounded hover:bg-white/5 border border-red-800" data-view="shop"><i class="fas fa-arrow-left mr-2"></i>Back to Shop</button>
 
             <div class="bg-gray-900 p-6 rounded shadow-lg border border-red-800 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <img src="${product.image}" alt="${product.title}" class="w-full h-auto object-cover rounded-lg shadow-xl" />
+                ${ProductImageGallery(product)} 
                 
                 <div>
                     <h1 class="text-3xl sm:text-4xl font-extrabold text-red-400 mb-2">${product.title}</h1>
@@ -445,7 +504,7 @@ function Cart(products, cart) {
             <div class="space-y-4">
                 ${items.map(it => `
                     <div key="${it.id}" class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <img src="${it.image}" class="h-16 w-full sm:w-24 object-cover rounded" />
+                        <img src="${it.images[0] || 'https://picsum.photos/96/96'}" class="h-16 w-full sm:w-24 object-cover rounded" />
                         <div class="flex-1">
                             <div class="font-semibold">${it.title}</div>
                             <div class="text-sm text-red-300">${money(it.price)} each</div>
@@ -459,7 +518,10 @@ function Cart(products, cart) {
             </div>
             <div class="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
                 <div class="text-lg font-semibold">Subtotal: ${money(subtotal)}</div>
-                <div><button id="checkout-btn" class="w-full sm:w-auto px-4 py-2 rounded bg-red-600 text-black font-semibold">Checkout</button></div>
+                <div class="flex gap-2">
+                    <button id="clear-cart-btn" class="w-full sm:w-auto px-4 py-2 rounded bg-gray-700 text-white font-semibold hover:bg-gray-600">Clear Cart</button>
+                    <button id="checkout-btn" class="w-full sm:w-auto px-4 py-2 rounded bg-red-600 text-black font-semibold">Checkout</button>
+                </div>
             </div>
         </div>`;
 
@@ -640,10 +702,10 @@ function ContentAdminTab(features, content) {
         <div class="border p-3 rounded border-red-800 space-y-3">
             <h3 class="font-semibold mb-2">${title}</h3>
             ${links.map(link => `
-                <div class="flex items-center gap-3 border-b border-red-900 pb-2 link-item" data-field="${field}" data-id="${link.id}">
+                <div class="flex items-center gap-3 border-b border-red-900 pb-2 link-item ${field}-link-item" data-field="${field}" data-id="${link.id}">
                     <i class="${link.icon || 'fas fa-link'} text-xl text-red-500 w-8 text-center"></i>
                     <div class="flex-1">
-                        <input id="edit-${field}-text-${link.id}" value="${link.text}" class="w-full p-1 border rounded bg-black text-white" />
+                        <input id="edit-${field}-text-${link.id}" value="${link.text || ''}" placeholder="Text" class="w-full p-1 border rounded bg-black text-white" />
                         <input id="edit-${field}-url-${link.id}" value="${link.url}" placeholder="URL" class="w-full p-1 border rounded bg-black text-white mt-1" />
                         ${link.icon ? `<input id="edit-${field}-icon-${link.id}" value="${link.icon}" placeholder="Icon Class (e.g. fab fa-whatsapp)" class="w-full p-1 border rounded bg-black text-white mt-1" />` : ''}
                     </div>
@@ -758,13 +820,14 @@ function SlideshowAdminTab(slides) { return `
         </div>
     `; }
 
+// UPDATED: Product Editor form to use an array of image URLs (pipe-separated)
 function ProductAdminTab(products) { return `
         <div>
             ${ProductEditor()}
             <div class="mt-4 space-y-3">
                 ${products.map(p => `
                     <div key="${p.id}" class="flex items-center gap-3 border p-3 rounded border-red-800">
-                        <img src="${p.image}" class="h-16 w-24 object-cover rounded" />
+                        <img src="${p.images[0] || 'https://picsum.photos/96/96'}" class="h-16 w-24 object-cover rounded" />
                         <div class="flex-1">
                             <div class="font-semibold">${p.title}</div>
                             <div class="text-sm text-red-300">${money(p.price)} • stock: ${p.stock}</div>
@@ -781,6 +844,7 @@ function ProductAdminTab(products) { return `
         </div>
     `; }
 
+// UPDATED: Added field for multiple images (pipe-separated) and long description
 function ProductEditor(product = {}) { return `
         <div class="border p-3 rounded border-red-800">
             <h3 class="font-semibold mb-2">Add new product</h3>
@@ -788,24 +852,29 @@ function ProductEditor(product = {}) { return `
                 <input id="add-title" placeholder="Title" class="p-2 border rounded col-span-2 bg-black text-white" />
                 <input id="add-price" placeholder="Price (in cents) e.g. 1999" value="0" class="p-2 border rounded bg-black text-white" />
                 <input id="add-stock" placeholder="Stock" value="0" class="p-2 border rounded bg-black text-white" />
-                <input id="add-image" placeholder="Image URL (optional)" class="p-2 border rounded md:col-span-3 bg-black text-white" />
+                <input id="add-image-list" placeholder="Image URLs (pipe-separated: url1|url2|...)" class="p-2 border rounded md:col-span-3 bg-black text-white" />
                 <input id="add-special-coupon" placeholder="Special Coupon Code (optional)" class="p-2 border rounded bg-black text-white" />
                 <input id="add-desc" placeholder="Short description" class="p-2 border rounded md:col-span-4 bg-black text-white" />
+                <textarea id="add-long-desc" placeholder="Long description (product detail page)" class="p-2 border rounded md:col-span-4 bg-black text-white"></textarea>
             </div>
             <div class="mt-2"><button id="add-product-submit" class="px-3 py-2 rounded bg-red-600 text-black">Add product</button></div>
         </div>
     `; }
 
-function EditProductForm(product) { return `
+// UPDATED: Added field for multiple images (pipe-separated) and long description
+function EditProductForm(product) { 
+    const imageList = product.images ? product.images.join('|') : '';
+    return `
         <div class="mt-4"><h3 class="font-semibold mb-2">Edit product: ${product.title}</h3>
             <div class="border p-3 rounded border-red-800" data-id="${product.id}">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
                     <input id="edit-title-${product.id}" value="${product.title}" class="p-2 border rounded col-span-2 bg-black text-white" />
                     <input id="edit-price-${product.id}" value="${product.price}" class="p-2 border rounded bg-black text-white" />
                     <input id="edit-stock-${product.id}" value="${product.stock}" class="p-2 border rounded bg-black text-white" />
-                    <input id="edit-image-${product.id}" value="${product.image}" class="p-2 border rounded md:col-span-3 bg-black text-white" />
+                    <input id="edit-image-list-${product.id}" value="${imageList}" placeholder="Image URLs (pipe-separated: url1|url2|...)" class="p-2 border rounded md:col-span-3 bg-black text-white" />
                     <input id="edit-special-coupon-${product.id}" value="${product.specialCoupon || ''}" placeholder="Special Coupon Code (optional)" class="p-2 border rounded bg-black text-white" />
                     <input id="edit-desc-${product.id}" value="${product.description}" class="p-2 border rounded md:col-span-4 bg-black text-white" />
+                    <textarea id="edit-long-desc-${product.id}" placeholder="Long description (product detail page)" class="p-2 border rounded md:col-span-4 bg-black text-white">${product.longDescription || ''}</textarea>
                 </div>
                 <div class="mt-2 flex gap-2">
                     <button class="save-product-btn px-3 py-2 rounded bg-green-600 text-black" data-id="${product.id}">Save</button>
@@ -815,11 +884,16 @@ function EditProductForm(product) { return `
         </div>
     `; }
 
+// UPDATED: Added SMS response input and button with pre-filled status message
 function OrderAdminTab(orders) { return `
         <div>
             ${orders.length === 0 ? '<div class="p-6 text-center text-red-300">No orders yet</div>' :
                 `<div class="space-y-3">
-                    ${orders.map(o => `
+                    ${orders.map(o => {
+                        const statusMessage = `BrosMart Update: Your order ${o.tracking} is currently ${o.status}.`;
+                        const statusColor = o.status === 'shipped' ? 'text-green-300' : 'text-yellow-300';
+                        
+                        return `
                         <div key="${o.id}" class="border p-3 rounded border-red-800">
                             <div class="flex items-center justify-between">
                                 <div>
@@ -829,7 +903,7 @@ function OrderAdminTab(orders) { return `
                                 </div>
                                 <div class="text-right">
                                     <div class="font-semibold text-red-400">${money(o.total)}</div>
-                                    <div class="text-sm ${o.status === 'shipped' ? 'text-green-300' : 'text-yellow-300'}">${o.status}</div>
+                                    <div class="text-sm ${statusColor}">${o.status}</div>
                                 </div>
                             </div>
                             <div class="mt-2 text-sm text-red-200">
@@ -838,12 +912,23 @@ function OrderAdminTab(orders) { return `
                                 <div class="mt-2"><strong>Items:</strong>
                                     <ul class="list-disc pl-5">${o.items.map(it => `<li>${it.title} x ${it.qty} — ${money(it.price * it.qty)}</li>`).join('')}</ul>
                                 </div>
-                                <div class="mt-3 flex gap-2">
-                                    ${o.status !== 'shipped' ? `<button class="mark-shipped-btn px-3 py-1 rounded bg-green-600 text-black" data-id="${o.id}">Mark shipped</button>` : `<div class="px-3 py-1 rounded bg-green-700 text-black">Shipped</div>`}
-                                </div>
+                                <div class="mt-3 flex flex-col gap-2">
+                                    <div class="flex gap-2 items-center">
+                                        ${o.status !== 'shipped' ? `<button class="mark-shipped-btn px-3 py-1 rounded bg-green-600 text-black" data-id="${o.id}">Mark shipped</button>` : `<div class="px-3 py-1 rounded bg-green-700 text-black">Shipped</div>`}
+                                    </div>
+                                    <div class="flex gap-2 items-center pt-2">
+                                        <input type="text" id="sms-text-${o.id}" 
+                                               class="flex-1 p-1 rounded bg-black text-white text-sm border border-red-900" 
+                                               placeholder="SMS response text to ${o.customer?.phone}..."
+                                               value="${statusMessage}" /> 
+                                        <button class="send-sms-btn px-3 py-1 rounded bg-blue-600 text-white text-sm" data-id="${o.id}">
+                                            Send SMS
+                                        </button>
+                                    </div>
+                                    </div>
                             </div>
                         </div>
-                    `).join('')}
+                    `)}
                 </div>`
             }
         </div>
@@ -878,7 +963,7 @@ function CouponEditor() { return `
                 <input id="coupon-value" placeholder="Value" value="10" class="p-2 border rounded bg-black text-white" />
                 <input id="coupon-desc" placeholder="Description" class="p-2 border rounded md:col-span-4 bg-black text-white" />
             </div>
-            <div class="mt-2"><button id="create-coupon-submit" class="px-3 py-2 rounded bg-red-600 text-black">Add product</button></div>
+            <div class="mt-2"><button id="create-coupon-submit" class="px-3 py-2 rounded bg-red-600 text-black">Add coupon</button></div>
         </div>
     `; }
     
@@ -1020,24 +1105,36 @@ function attachEventListeners() {
             const target = e.target.closest('[data-view]');
             if (target) {
                 const newView = target.dataset.view;
-                let viewDataUpdate = { productId: null, editingFeature: null, editingProduct: null };
+                let viewDataUpdate = { productId: null, editingFeature: null, editingProduct: null, activeImageIndex: 0 };
                 if (newView === 'admin') {
                     viewDataUpdate.tab = 'dashboard';
                 } else if (newView === 'track-order') {
-                    viewDataUpdate.order = null; // Clear previous order data
+                    viewDataUpdate.order = null; 
                 }
                 setState({ view: newView, viewData: { ...state.viewData, ...viewDataUpdate } });
             }
         };
     });
     
+    // NEW: Theme Toggle Listener
+    document.getElementById('theme-toggle-btn')?.addEventListener('click', toggleTheme);
+
     document.querySelectorAll('.product-detail-link').forEach(card => {
         card.onclick = (e) => {
             if (e.target.closest('.add-to-cart-btn')) return; 
             const id = card.dataset.id;
-            setState({ view: 'product-detail', viewData: { ...state.viewData, productId: id } });
+            setState({ view: 'product-detail', viewData: { ...state.viewData, productId: id, activeImageIndex: 0 } }); 
         };
     });
+
+    // NEW: Product Thumbnail Click Handler
+    document.querySelectorAll('.product-thumbnail').forEach(thumb => {
+        thumb.onclick = (e) => {
+            const index = Number(e.target.dataset.index);
+            setState({ viewData: { ...state.viewData, activeImageIndex: index } });
+        };
+    });
+
 
     document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
         btn.onclick = (e) => addToCart(e.target.dataset.id, 1);
@@ -1053,6 +1150,9 @@ function attachEventListeners() {
 
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) checkoutBtn.onclick = () => setState({ view: 'checkout' });
+
+    const clearCartBtn = document.getElementById('clear-cart-btn');
+    if (clearCartBtn) clearCartBtn.onclick = clearCart;
 
     const applyCouponBtn = document.getElementById('apply-coupon-btn');
     if (applyCouponBtn) {
@@ -1124,30 +1224,26 @@ function attachEventListeners() {
             const footerAbout = document.getElementById('edit-footer-about').value;
             const copyright = document.getElementById('edit-copyright').value;
             
-            const shopLinks = [];
-            document.querySelectorAll('.shop-link-item').forEach(el => {
-                shopLinks.push({ 
-                    id: el.dataset.id, 
-                    text: document.getElementById(`edit-shopLinks-text-${el.dataset.id}`).value,
-                    url: document.getElementById(`edit-shopLinks-url-${el.dataset.id}`).value,
+            const collectLinks = (field) => {
+                const links = [];
+                document.querySelectorAll(`.${field}-link-item`).forEach(el => {
+                    const id = el.dataset.id;
+                    const textEl = document.getElementById(`edit-${field}-text-${id}`);
+                    const iconEl = document.getElementById(`edit-${field}-icon-${id}`);
+                    const link = { 
+                        id, 
+                        url: document.getElementById(`edit-${field}-url-${id}`).value,
+                    };
+                    if (textEl) link.text = textEl.value;
+                    if (iconEl) link.icon = iconEl.value;
+                    links.push(link);
                 });
-            });
-            const infoLinks = [];
-            document.querySelectorAll('.info-link-item').forEach(el => {
-                infoLinks.push({ 
-                    id: el.dataset.id, 
-                    text: document.getElementById(`edit-infoLinks-text-${el.dataset.id}`).value,
-                    url: document.getElementById(`edit-infoLinks-url-${el.dataset.id}`).value,
-                });
-            });
-            const socialLinks = [];
-            document.querySelectorAll('.social-link-item').forEach(el => {
-                socialLinks.push({ 
-                    id: el.dataset.id, 
-                    icon: document.getElementById(`edit-socialLinks-icon-${el.dataset.id}`).value,
-                    url: document.getElementById(`edit-socialLinks-url-${el.dataset.id}`).value,
-                });
-            });
+                return links;
+            };
+
+            const shopLinks = collectLinks('shopLinks');
+            const infoLinks = collectLinks('infoLinks');
+            const socialLinks = collectLinks('socialLinks');
 
             try {
                 await fetch(`${API_URL}/content`, {
@@ -1162,6 +1258,57 @@ function attachEventListeners() {
             }
         };
     }
+
+    document.querySelectorAll('.add-footer-link-btn').forEach(btn => {
+        btn.onclick = async (e) => {
+            const field = e.target.dataset.field;
+            const text = document.getElementById(`new-${field}-text`)?.value;
+            const url = document.getElementById(`new-${field}-url`)?.value;
+            const icon = document.getElementById(`new-${field}-icon`)?.value;
+
+            if (!url || (!text && field !== 'socialLinks')) { alert('Provide text/icon and URL.'); return; }
+
+            const newLink = { id: uid(), url };
+            if (text) newLink.text = text;
+            if (icon) newLink.icon = icon;
+            
+            const updatedLinks = [...state.content[field], newLink];
+
+            try {
+                await fetch(`${API_URL}/content`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ [field]: updatedLinks })
+                });
+                await fetchState();
+                setState({ notify: `New link added to ${field}!` });
+            } catch (error) {
+                setState({ notify: 'Failed to add link to ${field}' });
+            }
+        };
+    });
+
+    document.querySelectorAll('.delete-footer-link-btn').forEach(btn => {
+        btn.onclick = async (e) => {
+            const field = e.target.dataset.field;
+            const id = e.target.dataset.id;
+            if (!confirm('Delete this link?')) return;
+            
+            const updatedLinks = state.content[field].filter(link => link.id !== id);
+
+            try {
+                await fetch(`${API_URL}/content`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ [field]: updatedLinks })
+                });
+                await fetchState();
+                setState({ notify: `Link deleted from ${field}.` });
+            } catch (error) {
+                setState({ notify: `Failed to delete link from ${field}` });
+            }
+        };
+    });
 
     const addFeatureBtn = document.getElementById('add-feature-btn');
     if (addFeatureBtn) {
@@ -1192,7 +1339,7 @@ function attachEventListeners() {
         };
     });
 
-    document.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+    document.querySelectorAll('.cancel-feature-edit-btn').forEach(btn => {
         btn.onclick = () => setState({ viewData: { ...state.viewData, editingFeature: null } });
     });
 
@@ -1273,14 +1420,21 @@ function attachEventListeners() {
             const title = document.getElementById('add-title').value;
             const price = Number(document.getElementById('add-price').value);
             const stock = Number(document.getElementById('add-stock').value);
-            const image = document.getElementById('add-image').value;
+            const imageList = document.getElementById('add-image-list').value;
             const desc = document.getElementById('add-desc').value;
+            const longDesc = document.getElementById('add-long-desc').value;
             const specialCoupon = document.getElementById('add-special-coupon').value || null;
+            
             if (!title || isNaN(price) || price <= 0) { alert('Provide valid title and price'); return; }
+            
+            const images = imageList.split('|').map(s => s.trim()).filter(s => s.length > 0);
+            if (images.length === 0) images.push(`https://picsum.photos/seed/${encodeURIComponent(title)}/800/600`);
+
             const newProduct = {
                 title, price, stock,
-                image: image || `https://picsum.photos/seed/${encodeURIComponent(title)}/800/600`,
+                images: images,
                 description: desc,
+                longDescription: longDesc,
                 specialCoupon: specialCoupon.trim() || null 
             };
             try {
@@ -1312,12 +1466,17 @@ function attachEventListeners() {
     document.querySelectorAll('.save-product-btn').forEach(btn => {
         btn.onclick = async (e) => {
             const id = e.target.dataset.id;
+            const imageList = document.getElementById(`edit-image-list-${id}`).value;
+            
+            const images = imageList.split('|').map(s => s.trim()).filter(s => s.length > 0);
+            
             const patch = {
                 title: document.getElementById(`edit-title-${id}`).value,
                 price: Number(document.getElementById(`edit-price-${id}`).value),
                 stock: Number(document.getElementById(`edit-stock-${id}`).value),
-                image: document.getElementById(`edit-image-${id}`).value,
+                images: images,
                 description: document.getElementById(`edit-desc-${id}`).value,
+                longDescription: document.getElementById(`edit-long-desc-${id}`).value,
                 specialCoupon: document.getElementById(`edit-special-coupon-${id}`).value.trim() || null
             };
             if (isNaN(patch.price) || patch.price <= 0 || isNaN(patch.stock)) {
@@ -1361,6 +1520,44 @@ function attachEventListeners() {
                 setState({ orders: state.orders.map(o => o.id === id ? { ...o, status: 'shipped' } : o), notify: `Order ${id} marked shipped` });
             } catch (error) {
                 setState({ notify: 'Failed to update order status' });
+            }
+        };
+    });
+
+    // NEW: Send SMS handler (Custom Message)
+    document.querySelectorAll('.send-sms-btn').forEach(btn => {
+        btn.onclick = async (e) => {
+            const orderId = e.target.dataset.id;
+            const smsText = document.getElementById(`sms-text-${orderId}`).value.trim();
+            const order = state.orders.find(o => o.id === orderId);
+            const phone = order?.customer?.phone;
+
+            if (!smsText) {
+                setState({ notify: 'Please enter a message to send.' });
+                return;
+            }
+            if (!phone) {
+                setState({ notify: `Error: Phone number missing for order ${orderId}.` });
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/orders/${orderId}/sms`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: smsText, phone: phone })
+                });
+
+                if (response.ok) {
+                    setState({ notify: `Custom SMS sent successfully to ${phone}` });
+                    document.getElementById(`sms-text-${orderId}`).value = ''; // Clear input
+                } else {
+                    const error = await response.json();
+                    setState({ notify: `Failed to send SMS: ${error.message}` });
+                }
+
+            } catch (error) {
+                setState({ notify: 'Connection error when trying to send SMS.' });
             }
         };
     });
@@ -1420,8 +1617,33 @@ function attachEventListeners() {
                 try {
                     const response = await fetch(`${API_URL}/orders/check?query=${encodeURIComponent(query)}`);
                     const order = await response.json();
+                    
                     if (response.ok) {
                         setState({ view: 'track-order', viewData: { ...state.viewData, order: order } });
+                        
+                        // === AUTOMATIC SMS ON TRACKING (for notification only) ===
+                        const phone = order.customer?.phone;
+                        const status = order.status;
+                        const trackingId = order.tracking;
+                        
+                        if (phone) {
+                            let smsMessage = `BrosMart Update: Your order ${trackingId} is currently ${status}. Thank you!`;
+                            
+                            // Automatically trigger the simulated SMS
+                            const smsResponse = await fetch(`${API_URL}/orders/${order.id}/sms`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ message: smsMessage, phone: phone })
+                            });
+                            
+                            if (smsResponse.ok) {
+                                setState({ notify: `Order found. Status SMS sent to customer: ${phone}` });
+                            } else {
+                                setState({ notify: `Order found, but failed to send status SMS.` });
+                            }
+                        }
+                        // =========================================================
+
                     } else {
                         setState({ notify: order.message || 'Order not found.' });
                     }
