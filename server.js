@@ -27,7 +27,7 @@ const productSchema = new mongoose.Schema({
     stock: Number,
     description: String,
     longDescription: String,
-    image: String,
+    images: [{ type: String }], // UPDATED: Changed from single 'image' to array 'images'
     specialCoupon: String
 });
 
@@ -77,7 +77,6 @@ const featureSchema = new mongoose.Schema({
     subtitle: String
 });
 
-// Updated content schema to include footer links and social media
 const contentSchema = new mongoose.Schema({
     id: String,
     footerAbout: String,
@@ -94,15 +93,37 @@ const Slide = mongoose.model('Slide', slideSchema);
 const Feature = mongoose.model('Feature', featureSchema);
 const Content = mongoose.model('Content', contentSchema);
 
-// --- Sample Data Injection (Updated) ---
+// --- Sample Data Injection (Updated for Images array) ---
 async function injectSampleData() {
     const productsCount = await Product.countDocuments();
     if (productsCount === 0) {
         const sampleProducts = [
-            { id: "P1", title: "Classic White Shirt", price: 1999, stock: 12, description: "Premium cotton shirt.", image: "https://picsum.photos/seed/shirt/800/600", longDescription: "Experience pure comfort with our Classic White Shirt. Made from 100% premium, breathable cotton, it features a modern cut and durable stitching. Perfect for office wear or a casual weekend look.", specialCoupon: 'SHIRT50' },
-            { id: "P2", title: "Slim Denim Jeans", price: 2999, stock: 8, description: "Comfort stretch denim.", image: "https://picsum.photos/seed/jeans/800/600", longDescription: "Our Slim Denim Jeans offer the perfect blend of style and comfort. With added stretch, they move with you, ensuring a great fit all day long. Features five pockets and a classic zip fly.", specialCoupon: null },
-            { id: "P3", title: "Running Sneakers", price: 3999, stock: 6, description: "Lightweight running shoes.", image: "https://picsum.photos/seed/shoes/800/600", longDescription: "Hit the road with confidence. These Running Sneakers are designed for performance, featuring a lightweight, breathable mesh upper and a shock-absorbing sole. Maximum comfort for your daily run.", specialCoupon: null },
-            { id: "P4", title: "Casual Hoodie", price: 2499, stock: 15, description: "Warm and stylish.", image: "https://picsum.photos/seed/hoodie/800/600", longDescription: "The ultimate casual staple. Our Casual Hoodie is soft, warm, and perfect for layering. Features a large front pocket and adjustable drawstring hood. Available in multiple colors.", specialCoupon: 'HOODIE10' },
+            { id: "P1", title: "Classic White Shirt", price: 1999, stock: 12, description: "Premium cotton shirt.", 
+                images: [
+                    "https://picsum.photos/seed/shirt_main/800/600",
+                    "https://picsum.photos/seed/shirt_detail1/800/600",
+                    "https://picsum.photos/seed/shirt_detail2/800/600"
+                ], 
+                longDescription: "Experience pure comfort with our Classic White Shirt. Made from 100% premium, breathable cotton, it features a modern cut and durable stitching. Perfect for office wear or a casual weekend look.", specialCoupon: 'SHIRT50' },
+            { id: "P2", title: "Slim Denim Jeans", price: 2999, stock: 8, description: "Comfort stretch denim.", 
+                images: [
+                    "https://picsum.photos/seed/jeans_main/800/600",
+                    "https://picsum.photos/seed/jeans_back/800/600"
+                ], 
+                longDescription: "Our Slim Denim Jeans offer the perfect blend of style and comfort. With added stretch, they move with you, ensuring a great fit all day long. Features five pockets and a classic zip fly.", specialCoupon: null },
+            { id: "P3", title: "Running Sneakers", price: 3999, stock: 6, description: "Lightweight running shoes.", 
+                images: [
+                    "https://picsum.photos/seed/shoes_main/800/600",
+                    "https://picsum.photos/seed/shoes_side/800/600",
+                    "https://picsum.photos/seed/shoes_sole/800/600",
+                    "https://picsum.photos/seed/shoes_top/800/600"
+                ], 
+                longDescription: "Hit the road with confidence. These Running Sneakers are designed for performance, featuring a lightweight, breathable mesh upper and a shock-absorbing sole. Maximum comfort for your daily run.", specialCoupon: null },
+            { id: "P4", title: "Casual Hoodie", price: 2499, stock: 15, description: "Warm and stylish.", 
+                images: [
+                    "https://picsum.photos/seed/hoodie_main/800/600"
+                ], 
+                longDescription: "The ultimate casual staple. Our Casual Hoodie is soft, warm, and perfect for layering. Features a large front pocket and adjustable drawstring hood. Available in multiple colors.", specialCoupon: 'HOODIE10' },
         ];
         await Product.insertMany(sampleProducts);
         console.log('Sample products injected.');
@@ -202,7 +223,6 @@ app.get('/api/dashboard', async (req, res) => {
     }
 });
 
-// API for updating content, including footer links
 app.put('/api/content', async (req, res) => {
     try {
         const updatedContent = await Content.findOneAndUpdate({ id: 'site_content' }, req.body, { new: true, upsert: true });
@@ -301,6 +321,33 @@ app.put('/api/orders/:id/shipped', async (req, res) => {
     }
 });
 
+// NEW: Simulated SMS Endpoint
+app.post('/api/orders/:id/sms', async (req, res) => {
+    const { message, phone } = req.body;
+    const orderId = req.params.id;
+
+    if (!message || !phone) {
+        return res.status(400).json({ message: 'Message and phone number are required.' });
+    }
+
+    try {
+        const order = await Order.findOne({ id: orderId });
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found.' });
+        }
+
+        // --- SIMULATE REAL SMS LOGIC HERE ---
+        console.log(`[SMS SENT] To: ${phone} (Order ${orderId}) | Message: "${message}"`);
+        
+        res.status(200).json({ 
+            message: `Simulated SMS sent successfully to ${phone}.`
+        });
+
+    } catch (err) {
+        res.status(500).json({ message: 'Error simulating SMS send', error: err.message });
+    }
+});
+
 app.post('/api/coupons', async (req, res) => {
     try {
         const newCoupon = new Coupon({ ...req.body, id: `C${Math.random().toString(36).slice(2, 9).toUpperCase()}` });
@@ -336,15 +383,6 @@ app.delete('/api/slides/:id', async (req, res) => {
         res.json({ message: 'Slide deleted' });
     } catch (err) {
         res.status(500).json({ message: 'Error deleting slide', error: err.message });
-    }
-});
-
-app.put('/api/content', async (req, res) => {
-    try {
-        const updatedContent = await Content.findOneAndUpdate({ id: 'site_content' }, req.body, { new: true, upsert: true });
-        res.json(updatedContent);
-    } catch (err) {
-        res.status(400).json({ message: 'Error updating content', error: err.message });
     }
 });
 
