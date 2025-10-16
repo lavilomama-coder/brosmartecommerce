@@ -16,7 +16,7 @@ let state = {
     cart: {},
     view: 'shop',
     adminAuthed: false,
-    theme: 'dark', // NEW: Theme state
+    theme: 'dark', 
     notify: null,
     appliedCoupon: null,
     showConfirmModal: false,
@@ -129,7 +129,6 @@ function applyCouponByCode(code) {
 }
 
 // --- Core Functions ---
-// NEW: Toggle Theme function
 function toggleTheme() {
     const newTheme = state.theme === 'dark' ? 'light' : 'dark';
     setState({ theme: newTheme });
@@ -256,7 +255,7 @@ function renderApp() {
     if (!container) return;
     if (slideshowInterval) clearInterval(slideshowInterval);
     
-    // NEW: Apply theme class to body/app wrapper
+    // Apply theme class to body/app wrapper
     document.body.className = state.theme;
 
     container.innerHTML = '';
@@ -411,8 +410,9 @@ function ProductCard(product) {
     `;
 }
 
-// NEW FUNCTION: Handles the multiple image display and thumbnail clicks
+// Handles the multiple image display and thumbnail clicks
 function ProductImageGallery(product) {
+    // Safety check for missing array data (crucial for stability)
     if (!product.images || product.images.length === 0) {
         return `<img src="https://picsum.photos/seed/placeholder/800/600" alt="No image" class="w-full h-auto object-cover rounded-lg shadow-xl" />`;
     }
@@ -432,7 +432,7 @@ function ProductImageGallery(product) {
                         data-id="${product.id}"
                         data-index="${index}"
                         class="product-thumbnail h-16 w-16 object-cover rounded cursor-pointer border-2 
-                        ${index === activeImageIndex ? 'border-red-500' : 'border-transparent hover:border-red-800'}" />
+                        ${index === activeImageIndex ? 'border-red-500' : 'border-transparent hover:border-800'}" />
                 `).join('')}
             </div>
         </div>
@@ -820,7 +820,7 @@ function SlideshowAdminTab(slides) { return `
         </div>
     `; }
 
-// UPDATED: Product Editor form to use an array of image URLs (pipe-separated)
+// UPDATED: Product Admin Tab
 function ProductAdminTab(products) { return `
         <div>
             ${ProductEditor()}
@@ -1116,7 +1116,6 @@ function attachEventListeners() {
         };
     });
     
-    // NEW: Theme Toggle Listener
     document.getElementById('theme-toggle-btn')?.addEventListener('click', toggleTheme);
 
     document.querySelectorAll('.product-detail-link').forEach(card => {
@@ -1127,7 +1126,6 @@ function attachEventListeners() {
         };
     });
 
-    // NEW: Product Thumbnail Click Handler
     document.querySelectorAll('.product-thumbnail').forEach(thumb => {
         thumb.onclick = (e) => {
             const index = Number(e.target.dataset.index);
@@ -1305,7 +1303,7 @@ function attachEventListeners() {
                 await fetchState();
                 setState({ notify: `Link deleted from ${field}.` });
             } catch (error) {
-                setState({ notify: `Failed to delete link from ${field}` });
+                setState({ notify: 'Failed to delete link from ${field}' });
             }
         };
     });
@@ -1550,7 +1548,7 @@ function attachEventListeners() {
 
                 if (response.ok) {
                     setState({ notify: `Custom SMS sent successfully to ${phone}` });
-                    document.getElementById(`sms-text-${orderId}`).value = ''; // Clear input
+                    // No clearing input so the admin can send follow-up messages
                 } else {
                     const error = await response.json();
                     setState({ notify: `Failed to send SMS: ${error.message}` });
